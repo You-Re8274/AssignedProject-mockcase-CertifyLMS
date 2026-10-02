@@ -89,6 +89,13 @@ class SectionQuestionPolicyTest extends TestCase
         ]);
         $policy = new SectionQuestionPolicy;
 
+        $section = $assignedQuestion->section;
+        $this->assertTrue($policy->viewAny($coach, $section));
+        $this->assertTrue($policy->view($coach, $assignedQuestion));
+        $this->assertTrue($policy->create($coach, $section));
         $this->assertTrue($policy->update($coach, $assignedQuestion));
+        $this->assertTrue($policy->delete($coach, $assignedQuestion));
+        $this->assertTrue($policy->publish($coach, $assignedQuestion));
+        $this->assertTrue($policy->unpublish($coach, $assignedQuestion));
     }
 }

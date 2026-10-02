@@ -66,9 +66,22 @@ class SectionPolicyTest extends TestCase
         $part = Part::factory()->for($assignedCert)->published()->create();
         $chapter = Chapter::factory()->for($part)->published()->create();
         $section = Section::factory()->for($chapter)->published()->create();
+        $otherCert = Certification::factory()->published()->create();
+        $otherSection = Section::factory()->for(
+            Chapter::factory()->for(Part::factory()->for($otherCert)->published())->published()
+        )->published()->create();
         $policy = new SectionPolicy;
 
+        $this->assertTrue($policy->viewAny($coach, $chapter));
+        $this->assertTrue($policy->view($coach, $section));
+        $this->assertFalse($policy->view($coach, $otherSection));
+        $this->assertTrue($policy->create($coach, $chapter));
         $this->assertTrue($policy->update($coach, $section));
+        $this->assertFalse($policy->update($coach, $otherSection));
+        $this->assertTrue($policy->delete($coach, $section));
+        $this->assertTrue($policy->publish($coach, $section));
+        $this->assertTrue($policy->unpublish($coach, $section));
+        $this->assertTrue($policy->reorder($coach, $chapter));
         $this->assertTrue($policy->preview($coach, $section));
     }
 }
