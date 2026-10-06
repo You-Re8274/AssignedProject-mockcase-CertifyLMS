@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\UseCases\Learning;
 
+use App\Enums\CertificationStatus;
 use App\Enums\ContentStatus;
 use App\Models\Chapter;
 use App\Models\Enrollment;
@@ -13,9 +14,11 @@ use App\Services\LearningHourTargetService;
 use App\Services\SectionQuestionScoreService;
 use App\Services\StreakService;
 use Illuminate\Support\Facades\DB;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
  * /learning/enrollments/{enrollment} (2 階層目、教材 Part 一覧) のデータを準備する Action。
+ * 資格が公開中でない受講登録は閲覧不可として 404 を返す。
  *
  * 共通サマリカード(進捗ゲージ / ストリーク / 学習時間目標)はタブの外で常に表示する。
  * タブは教材 / 演習問題の 2 タブで切替:
@@ -36,6 +39,10 @@ final class ShowEnrollmentAction
     public function __invoke(Enrollment $enrollment, string $tab = 'contents'): array
     {
         $enrollment->loadMissing(['certification', 'user', 'learningHourTarget']);
+
+        if ($enrollment->certification?->status !== CertificationStatus::Published) {
+            throw new NotFoundHttpException;
+        }
 
         $parts = $enrollment->certification
             ?->parts()

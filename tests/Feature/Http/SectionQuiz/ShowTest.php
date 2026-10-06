@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Http\SectionQuiz;
 
+use App\Enums\CertificationStatus;
 use App\Enums\ContentStatus;
 use App\Enums\EnrollmentStatus;
 use App\Enums\UserStatus;
@@ -44,6 +45,16 @@ class ShowTest extends TestCase
     public function test_failed_enrollment_returns_404(): void
     {
         [$student, $section] = $this->buildScenario(EnrollmentStatus::Failed);
+
+        $this->actingAs($student)
+            ->get(route('quiz.sections.show', $section))
+            ->assertNotFound();
+    }
+
+    public function test_archived_certification_returns_404(): void
+    {
+        [$student, $section] = $this->buildScenario(EnrollmentStatus::Learning);
+        $section->chapter->part->certification->update(['status' => CertificationStatus::Archived->value]);
 
         $this->actingAs($student)
             ->get(route('quiz.sections.show', $section))
