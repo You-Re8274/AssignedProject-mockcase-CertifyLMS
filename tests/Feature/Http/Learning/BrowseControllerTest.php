@@ -67,6 +67,17 @@ class BrowseControllerTest extends TestCase
         $response->assertViewIs('learning.enrollments.show');
     }
 
+    public function test_show_enrollment_404_when_certification_archived(): void
+    {
+        $student = User::factory()->student()->inProgress()->create();
+        $certification = Certification::factory()->archived()->create();
+        $enrollment = Enrollment::factory()->for($student)->for($certification)->learning()->create();
+
+        $this->actingAs($student)
+            ->get(route('learning.enrollments.show', $enrollment))
+            ->assertNotFound();
+    }
+
     public function test_show_enrollment_forbidden_for_other_student(): void
     {
         $student = User::factory()->student()->inProgress()->create();
