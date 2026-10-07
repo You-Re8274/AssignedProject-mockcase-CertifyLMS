@@ -30,6 +30,15 @@ class UpdateRequestTest extends TestCase
         $this->assertTrue($validator->passes(), $validator->errors()->toJson());
     }
 
+    public function test_passes_with_maximum_passing_score(): void
+    {
+        $payload = ['title' => '基本情報模試 第2回', 'order' => 1, 'passing_score' => 100];
+
+        $validator = Validator::make($payload, (new UpdateRequest)->rules());
+
+        $this->assertTrue($validator->passes(), $validator->errors()->toJson());
+    }
+
     #[DataProvider('invalidCases')]
     public function test_fails_for_invalid_field(string $field, mixed $value): void
     {
@@ -57,6 +66,7 @@ class UpdateRequestTest extends TestCase
             'order 65536 で エラー' => ['order', 65536],
             'passing_score 0 で エラー' => ['passing_score', 0],
             'passing_score 101 で エラー' => ['passing_score', 101],
+            'passing_score 150 で エラー' => ['passing_score', 150],
         ];
     }
 }
