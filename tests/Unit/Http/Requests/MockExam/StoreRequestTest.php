@@ -45,6 +45,26 @@ class StoreRequestTest extends TestCase
         ]);
     }
 
+    public function test_validation_accepts_maximum_passing_score(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $cert = Certification::factory()->published()->create();
+
+        $response = $this->actingAs($admin)->post(route('admin.mock-exams.store'), [
+            'certification_id' => $cert->id,
+            'title' => '100% 模試',
+            'order' => 1,
+            'passing_score' => 100,
+        ]);
+
+        $response->assertSessionDoesntHaveErrors();
+        $this->assertDatabaseHas('mock_exams', [
+            'certification_id' => $cert->id,
+            'title' => '100% 模試',
+            'passing_score' => 100,
+        ]);
+    }
+
     #[DataProvider('invalidFieldPayloads')]
     public function test_validation_fails(string $invalidField, mixed $invalidValue): void
     {
@@ -148,6 +168,7 @@ class StoreRequestTest extends TestCase
             'order 非整数で 422' => ['order', 'abc'],
             'passing_score 0 で 422' => ['passing_score', 0],
             'passing_score 101 で 422' => ['passing_score', 101],
+            'passing_score 150 で 422' => ['passing_score', 150],
             'passing_score 非整数で 422' => ['passing_score', 'abc'],
         ];
     }
