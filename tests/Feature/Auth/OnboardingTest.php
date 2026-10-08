@@ -128,6 +128,7 @@ class OnboardingTest extends TestCase
 
         $response = $this->get($url);
 
+        $response->assertGone();
         $response->assertViewIs('auth.invitation-invalid');
     }
 
@@ -143,6 +144,7 @@ class OnboardingTest extends TestCase
 
         $response = $this->get($this->signedShowUrl($invitation));
 
+        $response->assertGone();
         $response->assertViewIs('auth.invitation-invalid');
     }
 
@@ -200,6 +202,39 @@ class OnboardingTest extends TestCase
         ]);
 
         $this->assertAuthenticatedAs($invitation->user);
+        $this->assertDatabaseHas('invitations', [
+            'id' => $invitation->id,
+            'status' => InvitationStatus::Accepted->value,
+        ]);
+        $this->assertNotNull($invitation->fresh()->accepted_at);
+    }
+
+    public function test_completed_invitation_url_cannot_be_reused(): void
+    {
+        $invitation = $this->freshInvitation();
+        $postUrl = $this->postUrl($invitation);
+        $credentials = [
+            'name' => '最初の名前',
+            'password' => 'secret-pass',
+            'password_confirmation' => 'secret-pass',
+        ];
+
+        $this->post($postUrl, $credentials)->assertRedirect(route('dashboard.index'));
+
+        $this->get($this->signedShowUrl($invitation))->assertGone();
+
+        $this->post($postUrl, [
+            'name' => '上書きされた名前',
+            'password' => 'different-pass',
+            'password_confirmation' => 'different-pass',
+        ])->assertGone();
+
+        $this->assertDatabaseHas('users', [
+            'id' => $invitation->user_id,
+            'name' => '最初の名前',
+            'status' => UserStatus::InProgress->value,
+        ]);
+        $this->assertTrue(password_verify('secret-pass', $invitation->user->fresh()->password));
         $this->assertDatabaseHas('invitations', [
             'id' => $invitation->id,
             'status' => InvitationStatus::Accepted->value,

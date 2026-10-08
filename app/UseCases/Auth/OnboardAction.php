@@ -43,7 +43,15 @@ final class OnboardAction
     public function __invoke(Invitation $invitation, array $validated): User
     {
         $user = DB::transaction(function () use ($invitation, $validated) {
-            $invitation->refresh();
+            $invitation = Invitation::query()
+                ->whereKey($invitation->getKey())
+                ->lockForUpdate()
+                ->first();
+
+            if ($invitation === null) {
+                throw new InvalidInvitationTokenException;
+            }
+
             $user = $invitation->user;
 
             if (
@@ -67,6 +75,7 @@ final class OnboardAction
                 'name' => $validated['name'],
                 'bio' => $validated['bio'] ?? null,
                 'password' => Hash::make($validated['password']),
+                'status' => UserStatus::InProgress,
                 'profile_setup_completed' => true,
                 'email_verified_at' => $now,
             ];
@@ -100,6 +109,11 @@ final class OnboardAction
                     reason: 'オンボーディング初期付与',
                 );
             }
+
+            $invitation->forceFill([
+                'status' => InvitationStatus::Accepted,
+                'accepted_at' => $now,
+            ])->save();
 
             return $user->refresh();
         });
