@@ -33,7 +33,7 @@ class UpdateExamDateTest extends TestCase
 
         // Assert
         $response->assertRedirect(route('enrollments.show', $enrollment));
-        $response->assertSessionHas('success');
+        $response->assertSessionHas('success', '目標受験日を更新しました。');
         $this->assertDatabaseHas('enrollments', [
             'id' => $enrollment->id,
             'exam_date' => $examDate,
