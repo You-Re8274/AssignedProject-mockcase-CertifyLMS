@@ -73,6 +73,18 @@ class ChatUnreadCountServiceTest extends TestCase
             'last_read_at' => now(),
         ]);
 
+        $enrollmentC = Enrollment::factory()->for($student)->create();
+        $roomC = ChatRoom::factory()->for($enrollmentC)->create();
+        ChatMember::factory()->create([
+            'chat_room_id' => $roomC->id,
+            'user_id' => $student->id,
+            'last_read_at' => null,
+        ]);
+        ChatMessage::factory()->create([
+            'chat_room_id' => $roomC->id,
+            'sender_user_id' => $student->id,
+        ]);
+
         $count = app(ChatUnreadCountService::class)->roomCountForUser($student);
 
         $this->assertSame(1, $count);
