@@ -8,6 +8,7 @@ use App\Models\Certification;
 use App\Models\QaReply;
 use App\Models\QaThread;
 use App\Models\User;
+use Database\Seeders\QaBoardSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -83,5 +84,44 @@ class AdminModerationTest extends TestCase
             ->get(route('admin.qa-board.index'))
             ->assertForbidden();
         $this->get(route('admin.qa-board.show', $thread))->assertForbidden();
+    }
+
+    public function test_seeder_adds_threads_for_unpublished_certifications_visible_only_to_admin(): void
+    {
+        $admin = User::factory()->admin()->inProgress()->create();
+        $student = User::factory()->student()->inProgress()->create([
+            'email' => 'student@certify-lms.test',
+        ]);
+        $draft = Certification::factory()->draft()->create([
+            'name' => 'シーダー用公開停止資格',
+        ]);
+        $archived = Certification::factory()->archived()->create([
+            'name' => 'シーダー用アーカイブ資格',
+        ]);
+
+        $this->seed(QaBoardSeeder::class);
+
+        $this->actingAs($admin)
+            ->get(route('admin.qa-board.index'))
+            ->assertOk()
+            ->assertSee('【モデレーション確認用】シーダー用公開停止資格についての質問')
+            ->assertSee('【モデレーション確認用】シーダー用アーカイブ資格についての質問')
+            ->assertSee('下書き')
+            ->assertSee('アーカイブ');
+
+        $this->actingAs($student)
+            ->get(route('qa-board.index'))
+            ->assertOk()
+            ->assertDontSee('シーダー用公開停止資格')
+            ->assertDontSee('シーダー用アーカイブ資格');
+
+        $this->assertDatabaseHas('qa_threads', [
+            'certification_id' => $draft->id,
+            'user_id' => $student->id,
+        ]);
+        $this->assertDatabaseHas('qa_threads', [
+            'certification_id' => $archived->id,
+            'user_id' => $student->id,
+        ]);
     }
 }

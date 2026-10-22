@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Enums\CertificationStatus;
 use App\Enums\QaThreadStatus;
 use App\Enums\UserRole;
 use App\Models\Certification;
@@ -30,21 +31,44 @@ final class QaBoardSeeder extends Seeder
             ->orderBy('name')
             ->get();
 
-        if ($certifications->isEmpty()) {
-            $this->command?->warn('QaBoardSeeder: 公開中の資格が存在しません。先に CertificationSeeder を実行してください。');
-
-            return;
-        }
-
         $otherStudent = User::query()
             ->where('role', UserRole::Student->value)
             ->whereKeyNot($student->id)
             ->orderBy('created_at')
             ->first() ?? $student;
 
+        if ($certifications->isEmpty()) {
+            $this->command?->warn('QaBoardSeeder: 公開中の資格が存在しません。公開資格用スレッドをスキップします。');
+        }
+
         foreach ($certifications as $certificationIndex => $certification) {
             $coach = $certification->coaches->first();
             $this->seedCertificationThreads($certification, $student, $otherStudent, $coach, $certificationIndex);
+        }
+
+        $this->seedNonPublishedCertificationThreads($student);
+    }
+
+    private function seedNonPublishedCertificationThreads(User $student): void
+    {
+        $certifications = Certification::query()
+            ->where('status', '!=', CertificationStatus::Published->value)
+            ->orderBy('name')
+            ->get();
+
+        foreach ($certifications as $index => $certification) {
+            $createdAt = Carbon::now()
+                ->subDays(4 + $index)
+                ->setTime(10, 30);
+            $thread = QaThread::factory()->create([
+                'certification_id' => $certification->id,
+                'user_id' => $student->id,
+                'title' => '【モデレーション確認用】'.$certification->name.'についての質問',
+                'body' => 'このスレッドは管理者モデレーション画面の表示確認用です。公開停止中の資格に紐づくため、受講生・コーチの掲示板には表示されません。',
+                'status' => QaThreadStatus::Open->value,
+                'resolved_at' => null,
+            ]);
+            $thread->forceFill(['created_at' => $createdAt, 'updated_at' => $createdAt])->saveQuietly();
         }
     }
 
