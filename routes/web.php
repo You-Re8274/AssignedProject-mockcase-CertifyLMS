@@ -450,6 +450,15 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function () {
         ->name('admin.chat-rooms.index');
     Route::get('chat-rooms/{room}', [ChatRoomController::class, 'show'])
         ->name('admin.chat-rooms.show');
+
+    Route::get('qa-board', [QaBoardController::class, 'adminIndex'])
+        ->name('admin.qa-board.index');
+    Route::get('qa-board/{thread}', [QaBoardController::class, 'adminShow'])
+        ->name('admin.qa-board.show');
+    Route::delete('qa-board/{thread}', [QaBoardController::class, 'adminDestroy'])
+        ->name('admin.qa-board.destroy');
+    Route::delete('qa-board/{thread}/replies/{reply}', [QaBoardController::class, 'adminDestroyReply'])
+        ->name('admin.qa-board.replies.destroy');
 });
 
 // ============================================================

@@ -26,6 +26,10 @@ class QaReplyPolicy
 
     public function delete(User $user, QaReply $reply): bool
     {
+        if ($user->role === UserRole::Admin) {
+            return true;
+        }
+
         return $this->update($user, $reply);
     }
 }

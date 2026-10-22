@@ -14,11 +14,15 @@ class QaThreadPolicy
 {
     public function viewAny(User $user): bool
     {
-        return in_array($user->role, [UserRole::Student, UserRole::Coach], true);
+        return in_array($user->role, [UserRole::Admin, UserRole::Student, UserRole::Coach], true);
     }
 
     public function view(User $user, QaThread $thread): bool
     {
+        if ($user->role === UserRole::Admin) {
+            return true;
+        }
+
         if (! in_array($user->role, [UserRole::Student, UserRole::Coach], true)) {
             return false;
         }
@@ -46,6 +50,10 @@ class QaThreadPolicy
 
     public function delete(User $user, QaThread $thread): bool
     {
+        if ($user->role === UserRole::Admin) {
+            return true;
+        }
+
         return $this->update($user, $thread)
             && ! $thread->replies()->exists();
     }

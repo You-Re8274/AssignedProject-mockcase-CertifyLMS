@@ -13,6 +13,7 @@ use App\Http\Requests\QaBoard\UpdateThreadRequest;
 use App\Models\Certification;
 use App\Models\QaReply;
 use App\Models\QaThread;
+use App\UseCases\QaBoard\AdminIndexAction;
 use App\UseCases\QaBoard\DestroyReplyAction;
 use App\UseCases\QaBoard\DestroyThreadAction;
 use App\UseCases\QaBoard\IndexAction;
@@ -30,6 +31,22 @@ class QaBoardController extends Controller
     public function index(IndexRequest $request, IndexAction $action): View
     {
         $result = $action($request->user(), $request->validated());
+
+        return view('qa-thread.index', [
+            'threads' => $result['threads'],
+            'certifications' => $result['certifications'],
+            'filters' => [
+                'certification_id' => $request->validated('certification_id', ''),
+                'status' => $request->validated('status', ''),
+                'keyword' => $request->validated('keyword', ''),
+            ],
+            'publishedStatus' => CertificationStatus::Published,
+        ]);
+    }
+
+    public function adminIndex(IndexRequest $request, AdminIndexAction $action): View
+    {
+        $result = $action($request->validated());
 
         return view('qa-thread.index', [
             'threads' => $result['threads'],
@@ -70,6 +87,15 @@ class QaBoardController extends Controller
         ]);
     }
 
+    public function adminShow(QaThread $thread, ShowAction $action): View
+    {
+        $this->authorize('view', $thread);
+
+        return view('qa-thread.show', [
+            'thread' => $action($thread),
+        ]);
+    }
+
     public function edit(QaThread $thread): View
     {
         $this->authorize('update', $thread);
@@ -96,6 +122,16 @@ class QaBoardController extends Controller
 
         return redirect()
             ->route('qa-board.index')
+            ->with('success', '質問を削除しました。');
+    }
+
+    public function adminDestroy(QaThread $thread, DestroyThreadAction $action): RedirectResponse
+    {
+        $this->authorize('delete', $thread);
+        $action($thread);
+
+        return redirect()
+            ->route('admin.qa-board.index')
             ->with('success', '質問を削除しました。');
     }
 
@@ -166,6 +202,20 @@ class QaBoardController extends Controller
 
         return redirect()
             ->route('qa-board.show', $thread)
+            ->with('success', '回答を削除しました。');
+    }
+
+    public function adminDestroyReply(
+        QaThread $thread,
+        QaReply $reply,
+        DestroyReplyAction $action,
+    ): RedirectResponse {
+        abort_unless($reply->qa_thread_id === $thread->id, 404);
+        $this->authorize('delete', $reply);
+        $action($reply);
+
+        return redirect()
+            ->route('admin.qa-board.show', $thread)
             ->with('success', '回答を削除しました。');
     }
 }
