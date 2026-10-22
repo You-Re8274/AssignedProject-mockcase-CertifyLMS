@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\QaThreadStatus;
+use App\Enums\UserRole;
 use Database\Factories\QaThreadFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -56,5 +58,27 @@ class QaThread extends Model
     public function replies(): HasMany
     {
         return $this->hasMany(QaReply::class)->orderBy('created_at');
+    }
+
+    /**
+     * Restrict public board results to published certifications assigned to the viewer.
+     *
+     * @param Builder<QaThread> $query
+     *
+     * @return Builder<QaThread>
+     */
+    public function scopeVisibleTo(Builder $query, User $viewer): Builder
+    {
+        return $query
+            ->whereHas('certification', function (Builder $certifications) use ($viewer): void {
+                $certifications->published();
+
+                if ($viewer->role === UserRole::Coach) {
+                    $certifications->whereHas(
+                        'coaches',
+                        fn (Builder $coaches) => $coaches->where('users.id', $viewer->id),
+                    );
+                }
+            });
     }
 }

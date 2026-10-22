@@ -91,6 +91,7 @@ routes/web.php            … 入口。URL・ミドルウェア・Controller の
 - `Route::middleware(['auth', 'role:student', 'active-learning'])` — 受講生専用（学習・模試・面談など）。`active-learning` は「学習中ステータスの受講生のみ」を強制する
 - `Route::middleware(['auth', 'role:admin'])->prefix('admin')` — 管理者専用
 - `role:admin,coach` のような複数ロール指定もある（教材管理など）
+- `Route::middleware(['auth', 'role:student,coach', 'active-learning'])` — 受講中の受講生・コーチ共通の質問掲示板と chat。掲示板の資格公開状態・コーチ担当範囲は `QaThreadPolicy` と `QaThread::scopeVisibleTo()` で絞り込む
 
 `routes/api.php` は Sanctum 認証の最小構成のみです。
 
