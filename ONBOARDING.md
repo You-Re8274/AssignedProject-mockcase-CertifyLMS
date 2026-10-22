@@ -91,6 +91,7 @@ routes/web.php            … 入口。URL・ミドルウェア・Controller の
 - `Route::middleware(['auth', 'role:student', 'active-learning'])` — 受講生専用（学習・模試・面談など）。`active-learning` は「学習中ステータスの受講生のみ」を強制する
 - `Route::middleware(['auth', 'role:admin'])->prefix('admin')` — 管理者専用
 - `role:admin,coach` のような複数ロール指定もある（教材管理など）
+- `Route::middleware(['auth', 'role:student,coach', 'active-learning'])` — 受講中の受講生・コーチ共通の質問掲示板と chat。掲示板の資格公開状態・コーチ担当範囲は `QaThreadPolicy` と `QaThread::scopeVisibleTo()` で絞り込む
 
 `routes/api.php` は Sanctum 認証の最小構成のみです。
 
@@ -157,9 +158,9 @@ erDiagram
 - **ライフサイクル網羅のデモユーザー**: 招待中 / 受講中 / 卒業 / 退会の各状態（`UserLifecycleSeeder`）
 - **資格マスタ**: 基本情報技術者試験・応用情報技術者試験ほか。公開中 / 下書き / アーカイブの状態を網羅
 - **教材階層と演習問題**: 公開 / 下書きが混在し、全文検索でヒットする Markdown 本文入り（`ContentSeeder`）
-- **模試・受験履歴、面談・対応可能時間帯、チャットルーム・メッセージ、修了証** など各機能のデモデータ
+- **模試・受験履歴、面談・対応可能時間帯、チャットルーム・メッセージ、質問掲示板のスレッド・回答、修了証** など各機能のデモデータ
 
-`DatabaseSeeder` の call 順がそのまま依存順になっています（ユーザー → プラン → 資格 → 受講登録 → 教材 → 学習・模試・面談・チャット）。**新しいテーブルを追加するタスクでは、この Seeder 群に倣って動作確認用データを足す**と、画面確認とデモがやりやすくなります。
+`DatabaseSeeder` の call 順がそのまま依存順になっています（ユーザー → プラン → 資格 → 受講登録 → 教材 → 学習・模試・面談・チャット・質問掲示板）。**新しいテーブルを追加するタスクでは、この Seeder 群に倣って動作確認用データを足す**と、画面確認とデモがやりやすくなります。
 
 ---
 
