@@ -91,6 +91,7 @@ routes/web.php            … 入口。URL・ミドルウェア・Controller の
 - `Route::middleware(['auth', 'role:student', 'active-learning'])` — 受講生専用（学習・模試・面談など）。`active-learning` は「学習中ステータスの受講生のみ」を強制する
 - `Route::middleware(['auth', 'role:admin'])->prefix('admin')` — 管理者専用
 - 面談パック管理は `MeetingPackController` / `MeetingPackPolicy` / `Http/Requests/MeetingPack` を使い、`/admin/meeting-packs` 配下を管理者専用で提供する
+- プラン管理は `PlanController` / `PlanPolicy` / `Http/Requests/Plan` / `UseCases/Plan` を使い、`/admin/plans` 配下を管理者専用で提供する。一覧は `users_count` を集計し、下書き → 公開中 → アーカイブ → 下書きの状態遷移と、受講者・プラン履歴がない下書きのみ削除できる制約を Action で管理する
 - `role:admin,coach` のような複数ロール指定もある（教材管理など）
 - `Route::middleware(['auth', 'role:student,coach', 'active-learning'])` — 受講中の受講生・コーチ共通の質問掲示板と chat。掲示板の資格公開状態・コーチ担当範囲は `QaThreadPolicy` と `QaThread::scopeVisibleTo()` で絞り込む
 
