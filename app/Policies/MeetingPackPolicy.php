@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Policies;
 
-use App\Enums\MeetingPackStatus;
 use App\Enums\UserRole;
 use App\Models\MeetingPack;
 use App\Models\User;
@@ -33,25 +32,21 @@ class MeetingPackPolicy
 
     public function delete(User $user, MeetingPack $meetingPack): bool
     {
-        return $user->role === UserRole::Admin
-            && $meetingPack->status !== MeetingPackStatus::Published;
+        return $user->role === UserRole::Admin;
     }
 
     public function publish(User $user, MeetingPack $meetingPack): bool
     {
-        return $user->role === UserRole::Admin
-            && $meetingPack->status === MeetingPackStatus::Draft;
+        return $user->role === UserRole::Admin;
     }
 
     public function archive(User $user, MeetingPack $meetingPack): bool
     {
-        return $user->role === UserRole::Admin
-            && $meetingPack->status === MeetingPackStatus::Published;
+        return $user->role === UserRole::Admin;
     }
 
     public function unarchive(User $user, MeetingPack $meetingPack): bool
     {
-        return $user->role === UserRole::Admin
-            && $meetingPack->status === MeetingPackStatus::Archived;
+        return $user->role === UserRole::Admin;
     }
 }
