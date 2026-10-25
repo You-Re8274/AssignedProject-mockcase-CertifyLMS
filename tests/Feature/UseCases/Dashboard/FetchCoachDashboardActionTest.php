@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Services\ChatUnreadCountService;
 use App\UseCases\Dashboard\FetchCoachDashboardAction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Mockery;
 use Tests\TestCase;
@@ -38,7 +39,7 @@ class FetchCoachDashboardActionTest extends TestCase
         $this->assertSame($mine->id, $vm->assignedEnrollments->first()->id);
     }
 
-    public function test_assigned_enrollments_carry_last_activity_at_via_with_max(): void
+    public function test_assigned_enrollments_eager_load_rows_and_carry_latest_activity_at(): void
     {
         $coach = User::factory()->coach()->inProgress()->create();
         $cert = Certification::factory()->published()->create();
@@ -51,11 +52,22 @@ class FetchCoachDashboardActionTest extends TestCase
             ->closed()
             ->startedOn(now()->subDay())
             ->create();
+        $latestSession = LearningSession::factory()
+            ->forEnrollment($enrollment)
+            ->forUser($enrollment->user)
+            ->closed()
+            ->startedOn(now()->subHour())
+            ->create();
 
         $vm = app(FetchCoachDashboardAction::class)($coach);
 
         $first = $vm->assignedEnrollments->first();
-        $this->assertNotNull($first->last_activity_at);
+        $this->assertTrue($first->relationLoaded('user'));
+        $this->assertTrue($first->relationLoaded('certification'));
+        $this->assertSame(
+            $latestSession->started_at->toDateTimeString(),
+            Carbon::parse($first->last_activity_at)->toDateTimeString(),
+        );
     }
 
     public function test_only_passed_and_learning_enrollments_are_displayed(): void
