@@ -14,7 +14,7 @@ use Illuminate\Support\Collection;
 /**
  * コーチダッシュボード全体の ViewModel。Blade はプロパティアクセスのみで描画する。
  *
- * 担当受講生一覧は表示専用(ソートなし、最終活動日は担当受講生ごとに取得済)。
+ * 担当受講生一覧は表示専用(ソートなし、行関連と最終活動日時は一括取得済)。
  * Service 例外で取得失敗したカウンタ / 一覧は nullable プロパティに null が入り、Blade で empty-state にフォールバックする。
  */
 final readonly class CoachDashboardViewModel
