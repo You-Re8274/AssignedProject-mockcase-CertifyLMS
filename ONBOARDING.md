@@ -147,6 +147,8 @@ erDiagram
 | ロールによるアクセス制御 | `app/Http/Middleware/EnsureUserRole.php`（`role:` エイリアスの実体） |
 | メール通知 | `app/Notifications/Auth/ResetPasswordNotification.php`（Notification クラスの実例） |
 | 日次バッチ | `app/Console/Commands/`（招待の期限切れ・面談の自動完了など） |
+
+処理中に対象条件の状態を更新する定期処理を一定件数ずつ処理する場合は、オフセットがずれる `chunk()` ではなく主キーで位置を進める `chunkById()` を使う。該当例: `GraduateExpiredUsersCommand` / `FailExpiredEnrollmentsCommand` / `AutoCompleteMeetingsCommand`。
 | Feature テスト（HTTP 経由） | `tests/Feature/Http/{Entity}/` 配下（`actingAs()` でロール別に検証する形） |
 | Unit テスト（Model / Service） | `tests/Unit/Models/SectionTest.php` / `tests/Unit/Services/MeetingAvailabilityServiceTest.php` |
 
