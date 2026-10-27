@@ -93,6 +93,7 @@ routes/web.php            … 入口。URL・ミドルウェア・Controller の
 - 面談パック管理は `MeetingPackController` / `MeetingPackPolicy` / `Http/Requests/MeetingPack` を使い、`/admin/meeting-packs` 配下を管理者専用で提供する
 - プラン管理は `PlanController` / `PlanPolicy` / `Http/Requests/Plan` / `UseCases/Plan` を使い、`/admin/plans` 配下を管理者専用で提供する。一覧は `users_count` を集計し、下書き → 公開中 → アーカイブ → 下書きの状態遷移と、受講者・プラン履歴がない下書きのみ削除できる制約を Action で管理する
 - 通知は Laravel 標準の `notifications` テーブルと `User` の `Notifiable` を使う。`NotificationPolicy` は受講生・コーチの本人通知のみ閲覧・既読化を許可し、初期通知データは `NotificationSeeder` が固定アカウントへ投入する
+- 通知一覧・既読操作は `NotificationController` の `notifications.index` / `notifications.markAsRead` / `notifications.markAllAsRead` で提供し、一覧は本人の通知をページネーションする。既読時の `action_url` は同一ホストの内部パスのみ許可する
 - `role:admin,coach` のような複数ロール指定もある（教材管理など）
 - `Route::middleware(['auth', 'role:student,coach', 'active-learning'])` — 受講中の受講生・コーチ共通の質問掲示板と chat。掲示板の資格公開状態・コーチ担当範囲は `QaThreadPolicy` と `QaThread::scopeVisibleTo()` で絞り込む
 
