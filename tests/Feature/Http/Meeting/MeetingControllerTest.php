@@ -12,9 +12,11 @@ use App\Models\Enrollment;
 use App\Models\Meeting;
 use App\Models\MeetingQuotaTransaction;
 use App\Models\User;
+use App\Notifications\ActivityNotification;
 use App\Services\MeetingQuotaService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -91,6 +93,7 @@ class MeetingControllerTest extends TestCase
 
     public function test_store_creates_meeting_for_owner(): void
     {
+        Notification::fake();
         $student = User::factory()->student()->inProgress()->create(['max_meetings' => 3]);
         $admin = User::factory()->admin()->create();
         $coach = User::factory()->coach()->inProgress()->create([
@@ -115,6 +118,8 @@ class MeetingControllerTest extends TestCase
             'enrollment_id' => $enrollment->id,
             'status' => MeetingStatus::Reserved->value,
         ]);
+        Notification::assertSentTo($coach, ActivityNotification::class);
+        Notification::assertNotSentTo($student, ActivityNotification::class);
     }
 
     public function test_store_rejects_non_zero_minutes(): void
@@ -154,6 +159,7 @@ class MeetingControllerTest extends TestCase
 
     public function test_cancel_allows_owner(): void
     {
+        Notification::fake();
         $student = User::factory()->student()->inProgress()->create(['max_meetings' => 5]);
         $coach = User::factory()->coach()->create();
         $meeting = Meeting::factory()->reserved()->forCoach($coach)->forStudent($student)->create([
@@ -164,6 +170,10 @@ class MeetingControllerTest extends TestCase
 
         $response->assertRedirect();
         $this->assertSame(MeetingStatus::Canceled, $meeting->fresh()->status);
+        Notification::assertSentTo($coach, ActivityNotification::class, function (ActivityNotification $notification) use ($coach): bool {
+            return $notification->toDatabase($coach)['notification_type'] === 'meeting_canceled';
+        });
+        Notification::assertNotSentTo($student, ActivityNotification::class);
     }
 
     public function test_index_as_coach_only_lists_own_meetings(): void
@@ -327,6 +337,7 @@ class MeetingControllerTest extends TestCase
 
     public function test_coach_cancel_refunds_meeting_quota_to_student(): void
     {
+        Notification::fake();
         $student = User::factory()->student()->inProgress()->create(['max_meetings' => 5]);
         $coach = User::factory()->coach()->create();
         $meeting = Meeting::factory()->reserved()->forCoach($coach)->forStudent($student)->create([
@@ -343,5 +354,9 @@ class MeetingControllerTest extends TestCase
             $remainingBefore + 1,
             app(MeetingQuotaService::class)->remaining($student),
         );
+        Notification::assertSentTo($student, ActivityNotification::class, function (ActivityNotification $notification) use ($student): bool {
+            return $notification->toDatabase($student)['notification_type'] === 'meeting_canceled';
+        });
+        Notification::assertNotSentTo($coach, ActivityNotification::class);
     }
 }

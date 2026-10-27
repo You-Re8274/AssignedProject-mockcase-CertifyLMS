@@ -20,6 +20,7 @@ use App\Models\Enrollment;
 use App\Models\Meeting;
 use App\Models\MeetingMemo;
 use App\Models\User;
+use App\Services\ActivityNotificationService;
 use App\Services\CoachMeetingLoadService;
 use App\Services\MeetingAvailabilityService;
 use App\Services\MeetingQuotaService;
@@ -167,6 +168,7 @@ class MeetingController extends Controller
         CoachMeetingLoadService $coachLoadService,
         MeetingQuotaService $quotaService,
         ConsumeQuotaAction $consumeAction,
+        ActivityNotificationService $notifications,
     ): RedirectResponse {
         $scheduledAt = Carbon::parse($request->validated('scheduled_at'));
         $topic = $request->validated('topic');
@@ -216,6 +218,16 @@ class MeetingController extends Controller
             return $meeting->fresh();
         });
 
+        $meeting->loadMissing(['student', 'coach']);
+        $notifications->send(
+            recipient: $meeting->coach,
+            actor: $student,
+            type: 'meeting_reserved',
+            title: '新しい面談予約があります',
+            message: $student->name.' さんが面談を予約しました。',
+            actionUrl: route('meetings.show', $meeting),
+        );
+
         return redirect()
             ->route('meetings.show', $meeting)
             ->with('success', '面談を予約しました。');
@@ -228,6 +240,7 @@ class MeetingController extends Controller
     public function cancel(
         Meeting $meeting,
         RefundQuotaAction $refundAction,
+        ActivityNotificationService $notifications,
     ): RedirectResponse {
         $this->authorize('cancel', $meeting);
 
@@ -251,6 +264,24 @@ class MeetingController extends Controller
 
             $refundAction($locked->student()->firstOrFail(), $locked->id);
         });
+
+        $meeting->loadMissing(['student', 'coach']);
+        $notifications->send(
+            recipient: $meeting->student,
+            actor: $actor,
+            type: 'meeting_canceled',
+            title: '面談がキャンセルされました',
+            message: $actor->name.' さんが面談をキャンセルしました。',
+            actionUrl: route('meetings.show', $meeting),
+        );
+        $notifications->send(
+            recipient: $meeting->coach,
+            actor: $actor,
+            type: 'meeting_canceled',
+            title: '面談がキャンセルされました',
+            message: $actor->name.' さんが面談をキャンセルしました。',
+            actionUrl: route('meetings.show', $meeting),
+        );
 
         return redirect()
             ->route('meetings.show', $meeting)

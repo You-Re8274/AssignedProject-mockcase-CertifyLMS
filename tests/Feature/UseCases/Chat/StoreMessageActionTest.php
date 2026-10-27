@@ -9,9 +9,11 @@ use App\Models\ChatMember;
 use App\Models\ChatRoom;
 use App\Models\Enrollment;
 use App\Models\User;
+use App\Notifications\ActivityNotification;
 use App\UseCases\Chat\StoreMessageAction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
 /**
@@ -28,6 +30,7 @@ class StoreMessageActionTest extends TestCase
     public function test_insert_message_and_update_sender_last_read_at(): void
     {
         Event::fake([ChatMessageSent::class]);
+        Notification::fake();
 
         $sender = User::factory()->student()->inProgress()->create();
         $coach = User::factory()->coach()->inProgress()->create();
@@ -56,6 +59,12 @@ class StoreMessageActionTest extends TestCase
         $this->assertNotNull($senderMember->fresh()->last_read_at);
 
         Event::assertDispatched(ChatMessageSent::class);
+        Notification::assertSentTo(
+            $coach,
+            ActivityNotification::class,
+            fn (ActivityNotification $notification): bool => $notification->toDatabase($coach)['notification_type'] === 'chat_message_received',
+        );
+        Notification::assertNotSentTo($sender, ActivityNotification::class);
     }
 
     public function test_signature_is_user_chat_room_array(): void

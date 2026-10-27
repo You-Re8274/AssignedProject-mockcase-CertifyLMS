@@ -44,7 +44,7 @@
     <div class="flex-1"></div>
 
     {{-- 通知ベル + 通知ポップオーバー(ベル横アンカー) --}}
-    @if (Route::has('notifications.index'))
+    @if (Route::has('notifications.index') && auth()->user()?->can('viewAny', \Illuminate\Notifications\DatabaseNotification::class))
         <div class="relative" data-notification-popover-root>
             <button
                 type="button"
