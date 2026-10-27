@@ -9,8 +9,10 @@ use App\Models\Certification;
 use App\Models\QaReply;
 use App\Models\QaThread;
 use App\Models\User;
+use App\Notifications\ActivityNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -167,6 +169,7 @@ class PublicBoardTest extends TestCase
 
     public function test_student_and_coach_can_reply_and_reply_author_can_edit_and_delete(): void
     {
+        Notification::fake();
         $student = User::factory()->student()->inProgress()->create();
         $answeringStudent = User::factory()->student()->inProgress()->create();
         $coach = User::factory()->coach()->inProgress()->create();
@@ -198,6 +201,9 @@ class PublicBoardTest extends TestCase
 
         $this->assertDatabaseHas('qa_replies', ['id' => $studentReply->id, 'body' => '回答を編集しました。']);
         $this->assertDatabaseMissing('qa_replies', ['id' => $coachReply->id]);
+        Notification::assertSentTo($student, ActivityNotification::class);
+        Notification::assertNotSentTo($answeringStudent, ActivityNotification::class);
+        Notification::assertNotSentTo($coach, ActivityNotification::class);
     }
 
     public function test_only_authors_can_edit_or_delete_and_thread_requires_no_replies_for_student_delete(): void

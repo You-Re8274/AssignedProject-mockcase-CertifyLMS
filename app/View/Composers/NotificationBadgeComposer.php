@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\View\Composers;
 
+use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Facades\Route;
 use Illuminate\View\View;
 
@@ -28,7 +29,9 @@ final class NotificationBadgeComposer
         }
 
         $user = auth()->user();
-        $count = $user?->unreadNotifications()->count() ?? 0;
+        $count = $user?->can('viewAny', DatabaseNotification::class)
+            ? $user->unreadNotifications()->count()
+            : 0;
 
         $view->with('notificationBadge', $count);
     }
