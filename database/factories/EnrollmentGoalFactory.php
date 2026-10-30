@@ -24,7 +24,7 @@ class EnrollmentGoalFactory extends Factory
             'enrollment_id' => Enrollment::factory(),
             'title' => fake()->sentence(4),
             'description' => fake()->optional()->paragraph(),
-            'target_date' => fake()->optional()->dateTimeBetween('now', '+6 months')->format('Y-m-d'),
+            'target_date' => fake()->optional()->dateTimeBetween('now', '+6 months')?->format('Y-m-d'),
             'achieved_at' => null,
         ];
     }

@@ -25,15 +25,23 @@ class EnrollmentPolicyTest extends TestCase
     public function test_view_role_branching(): void
     {
         $admin = User::factory()->admin()->create();
-        $student = User::factory()->student()->create();
+        $student = User::factory()->student()->inProgress()->create();
         $cert = Certification::factory()->published()->create();
         $enrollment = Enrollment::factory()->for($student)->for($cert)->learning()->create();
-        $other = User::factory()->student()->create();
+        $other = User::factory()->student()->inProgress()->create();
+        $inactiveStudents = [
+            User::factory()->student()->invited()->create(),
+            User::factory()->student()->graduated()->create(),
+            User::factory()->student()->withdrawn()->create(),
+        ];
         $policy = new EnrollmentPolicy;
 
         $this->assertTrue($policy->view($admin, $enrollment));
         $this->assertTrue($policy->view($student, $enrollment));
         $this->assertFalse($policy->view($other, $enrollment), '他人の enrollment は view 不可');
+        foreach ($inactiveStudents as $inactiveStudent) {
+            $this->assertFalse($policy->view($inactiveStudent, $enrollment), '受講停止中の本人は view 不可');
+        }
     }
 
     public function test_coach_can_view_only_assigned_certification(): void
