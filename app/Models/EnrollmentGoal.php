@@ -37,6 +37,11 @@ class EnrollmentGoal extends Model
         return $this->belongsTo(Enrollment::class);
     }
 
+    public function isAchieved(): bool
+    {
+        return $this->achieved_at !== null;
+    }
+
     public function scopeDisplayOrder(Builder $query): Builder
     {
         return $query
