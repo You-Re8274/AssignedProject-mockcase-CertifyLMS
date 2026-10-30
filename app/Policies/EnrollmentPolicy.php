@@ -6,6 +6,7 @@ namespace App\Policies;
 
 use App\Enums\EnrollmentStatus;
 use App\Enums\UserRole;
+use App\Enums\UserStatus;
 use App\Models\Enrollment;
 use App\Models\User;
 
@@ -13,7 +14,7 @@ use App\Models\User;
  * Enrollment リソースに対する認可ポリシー。
  *
  * - viewAny: admin / coach / student いずれかであれば一覧自体は閲覧可(取得スコープは Controller / Action 側で絞る)
- * - view: 受講生本人 / 当該資格の担当コーチ / admin
+ * - view: 受講中の受講生本人 / 当該資格の担当コーチ / admin
  * - create / delete: 受講生本人(自己登録 / 自己解除)。delete は status == Learning のみ
  * - receiveCertificate: 受講生本人 + status == Learning のみ
  * - resume: 受講生本人 + status == Failed、または admin
@@ -33,7 +34,8 @@ class EnrollmentPolicy
     {
         return match ($user->role) {
             UserRole::Admin => true,
-            UserRole::Student => $enrollment->user_id === $user->id,
+            UserRole::Student => $user->status === UserStatus::InProgress
+                && $enrollment->user_id === $user->id,
             UserRole::Coach => $this->isAssignedCoach($enrollment, $user),
         };
     }
