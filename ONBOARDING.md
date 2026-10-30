@@ -30,6 +30,7 @@ Certify LMS は **マルチ資格対応の資格学習プラットフォーム**
 |---|---|
 | Certification（資格） | 学習対象の資格（例: 基本情報技術者試験）。資格分類（CertificationCategory）に属し、公開状態（下書き / 公開中 / アーカイブ）を持つ |
 | Enrollment（受講登録） | **受講生 × 資格の受講関係。このドメインの中心エンティティ**。学習ステータス・目標受験日・学習タームを持つ |
+| EnrollmentGoal（個人目標） | 受講登録ごとの学習目標。目標期日と達成日時を持ち、未達成・期日が近い順に表示する |
 | Term（学習ターム） | 受講の段階。基礎学習（basic_learning）→ 実践（mock_practice）へ学習状況に応じて切り替わる |
 | Part / Chapter / Section | 教材の 3 階層。本文（Markdown）は Section が持ち、画面では HTML に変換して表示する |
 | SectionQuestion（演習問題） | Section に紐づく選択式の問題。出題分野（QuestionCategory）を持つ |
@@ -123,7 +124,7 @@ erDiagram
 | クラスタ | テーブル | 概要 |
 |---|---|---|
 | ユーザー・契約 | users, user_status_logs, invitations, plans, user_plan_logs, meeting_packs, meeting_quota_transactions | 招待制のユーザー管理。プラン（受講期間 + 面談回数）の割当履歴と、面談回数の増減履歴（追記専用） |
-| 資格・受講 | certifications, certification_categories, certification_coach_assignments, enrollments, enrollment_status_logs, certificates | 資格マスタ・コーチ割当・**受講登録（中心エンティティ）**・修了証 |
+| 資格・受講 | certifications, certification_categories, certification_coach_assignments, enrollments, enrollment_goals, enrollment_status_logs, certificates | 資格マスタ・コーチ割当・**受講登録（中心エンティティ）**・受講登録単位の個人目標・修了証 |
 | 教材 | parts, chapters, sections, section_images, question_categories, section_questions, section_question_options | 教材 3 階層と Section 紐づき演習問題、出題分野マスタ |
 | 演習解答 | section_question_answers, section_question_attempts | 受講生の演習問題への解答・受験履歴 |
 | 学習進捗 | section_progresses, learning_sessions, learning_hour_targets | Section の読了マーク、学習セッション（時間計測）、学習時間目標 |
@@ -167,7 +168,7 @@ erDiagram
 - **教材階層と演習問題**: 公開 / 下書きが混在し、全文検索でヒットする Markdown 本文入り（`ContentSeeder`）
 - **模試・受験履歴、面談・対応可能時間帯、チャットルーム・メッセージ、質問掲示板のスレッド・回答、修了証** など各機能のデモデータ
 
-`DatabaseSeeder` の call 順がそのまま依存順になっています（ユーザー → プラン → 資格 → 受講登録 → 教材 → 学習・模試・面談・チャット・質問掲示板）。**新しいテーブルを追加するタスクでは、この Seeder 群に倣って動作確認用データを足す**と、画面確認とデモがやりやすくなります。
+`DatabaseSeeder` の call 順がそのまま依存順になっています（ユーザー → プラン → 資格 → 受講登録・個人目標 → 教材 → 学習・模試・面談・チャット・質問掲示板）。固定受講生とデモ受講登録には達成済・未達成の個人目標を投入します（`EnrollmentGoalSeeder`）。**新しいテーブルを追加するタスクでは、この Seeder 群に倣って動作確認用データを足す**と、画面確認とデモがやりやすくなります。
 
 ---
 
