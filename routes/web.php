@@ -42,6 +42,7 @@ use App\Http\Controllers\SectionQuestionController;
 use App\Http\Controllers\SectionQuizController;
 use App\Http\Controllers\SectionQuizResultController;
 use App\Http\Controllers\Settings\AvailabilityController as SettingsAvailabilityController;
+use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\SettingsDefaultEnrollmentController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WeakDrillController;
@@ -75,6 +76,13 @@ Route::middleware('auth')->group(function () {
         ->name('notifications.markAllAsRead');
     Route::post('notifications/{notification}/read', [NotificationController::class, 'markAsRead'])
         ->name('notifications.markAsRead');
+
+    // 全ロール共通の本人プロフィール設定。active-learning を付けず、修了済みユーザーも利用可能。
+    Route::get('settings/profile', [ProfileController::class, 'edit'])->name('settings.profile.edit');
+    Route::patch('settings/profile', [ProfileController::class, 'update'])->name('settings.profile.update');
+    Route::post('settings/avatar', [ProfileController::class, 'storeAvatar'])->name('settings.avatar.store');
+    Route::delete('settings/avatar', [ProfileController::class, 'destroyAvatar'])->name('settings.avatar.destroy');
+    Route::put('settings/password', [ProfileController::class, 'updatePassword'])->name('settings.password.update');
 
     // 受講登録(3 ロール共有: student=自分のみ / coach=担当範囲 / admin=全件)。
     // 認可は EnrollmentPolicy::viewAny / view で 3 ロール対応済。閲覧範囲は EnrollmentController で

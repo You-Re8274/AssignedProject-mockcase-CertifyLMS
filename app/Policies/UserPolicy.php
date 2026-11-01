@@ -10,7 +10,7 @@ use App\Models\User;
 /**
  * 管理者向けユーザー運用画面の認可ルール。
  *
- * 「他者のプロフィール / ロール変更」動線は本 LMS では提供しないため、`update` / `updateRole` は持たない。
+ * 管理者向けの他者操作と、全ロール共通の本人設定操作を分けて定義する。
  * メールアドレス変更 / ロール変更は退会 + 新規招待で運用する。
  */
 class UserPolicy
@@ -23,6 +23,31 @@ class UserPolicy
     public function view(User $auth, User $target): bool
     {
         return $auth->role === UserRole::Admin;
+    }
+
+    public function viewOwnSettings(User $auth, User $target): bool
+    {
+        return $auth->is($target);
+    }
+
+    public function updateOwnProfile(User $auth, User $target): bool
+    {
+        return $auth->is($target);
+    }
+
+    public function updateOwnPassword(User $auth, User $target): bool
+    {
+        return $auth->is($target);
+    }
+
+    public function uploadOwnAvatar(User $auth, User $target): bool
+    {
+        return $auth->is($target);
+    }
+
+    public function deleteOwnAvatar(User $auth, User $target): bool
+    {
+        return $auth->is($target);
     }
 
     public function withdraw(User $auth, User $target): bool
