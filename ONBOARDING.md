@@ -98,6 +98,7 @@ routes/web.php            … 入口。URL・ミドルウェア・Controller の
 - 設定プロフィールの保存先は既存の `users` カラムを使う。氏名は `name`、自己紹介は `bio`、コーチの固定面談 URL は `meeting_url`、アバター URL は `avatar_url`。これらは `User::$fillable` に登録済みのため、プロフィール機能のための追加マイグレーションは不要
 - 設定画面の本人操作は `UserPolicy` の `viewOwnSettings` / `updateOwnProfile` / `updateOwnPassword` / `uploadOwnAvatar` / `deleteOwnAvatar` で判定し、`Http/Requests/Settings` の FormRequest でプロフィール・パスワード・アバターを検証する。ロールや利用状態では制限せず、コーチ以外からの `meeting_url` 更新は拒否する
 - 設定 HTTP 操作は `Settings/ProfileController` → `UseCases/Settings` で提供する。全ロール認証ルートに限定し `active-learning` は付与しないため、修了済ユーザーもプロフィール・パスワード・アバターを管理できる。アバターは public disk の本人専用ディレクトリに保存し、同ディレクトリ内のファイルのみ置換・削除する
+- 設定機能の Feature テストは `tests/Feature/Http/Settings/ProfileControllerTest.php`、本人操作の認可は `tests/Unit/Policies/UserPolicyTest.php` で検証する
 - 個人目標は `EnrollmentGoalPolicy` で閲覧を Enrollment の認可に連動させ、追加・編集・削除・達成状態変更は受講中の本人かつ学習中 Enrollment に限定する。受講停止状態の受講生は Enrollment 詳細を閲覧できない。入力は `Http/Requests/EnrollmentGoal/StoreRequest`・`UpdateRequest` で検証する
 - 個人目標の HTTP 操作は `EnrollmentGoalController` → `UseCases/EnrollmentGoal` で提供し、一覧は `Enrollment/ShowAction` が未達成・期日順に eager load して受講登録詳細へ渡す
 - 業務通知は `ActivityNotificationService` / `ActivityNotification` で database + mail に同期配信する。チャット投稿・質問への回答・面談予約 / キャンセルで、送信者本人・管理者・受講中でないユーザーを除外し、自動完了面談では通知しない
