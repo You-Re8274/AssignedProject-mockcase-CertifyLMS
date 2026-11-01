@@ -19,6 +19,31 @@ class UserPolicyTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_all_roles_can_access_only_their_own_settings_including_graduated_students(): void
+    {
+        $policy = new UserPolicy;
+
+        foreach ([
+            User::factory()->admin()->create(),
+            User::factory()->coach()->create(),
+            User::factory()->student()->inProgress()->create(),
+            User::factory()->student()->graduated()->create(),
+        ] as $user) {
+            $this->assertTrue($policy->viewOwnSettings($user, $user));
+            $this->assertTrue($policy->updateOwnProfile($user, $user));
+            $this->assertTrue($policy->updateOwnPassword($user, $user));
+            $this->assertTrue($policy->uploadOwnAvatar($user, $user));
+            $this->assertTrue($policy->deleteOwnAvatar($user, $user));
+
+            $other = User::factory()->student()->create();
+            $this->assertFalse($policy->viewOwnSettings($user, $other));
+            $this->assertFalse($policy->updateOwnProfile($user, $other));
+            $this->assertFalse($policy->updateOwnPassword($user, $other));
+            $this->assertFalse($policy->uploadOwnAvatar($user, $other));
+            $this->assertFalse($policy->deleteOwnAvatar($user, $other));
+        }
+    }
+
     /**
      * 管理者向けユーザー運用 ability × Role のマトリクス検証。
      * Admin のみ全 ability で true、Coach / Student は全 ability で false が期待値。
