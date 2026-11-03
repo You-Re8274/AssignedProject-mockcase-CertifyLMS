@@ -39,6 +39,8 @@ class Meeting extends Model
         'canceled_at',
         'meeting_url_snapshot',
         'completed_at',
+        'day_before_reminder_sent_at',
+        'one_hour_before_reminder_sent_at',
         'meeting_quota_transaction_id',
     ];
 
@@ -47,6 +49,8 @@ class Meeting extends Model
         'scheduled_at' => 'datetime',
         'canceled_at' => 'datetime',
         'completed_at' => 'datetime',
+        'day_before_reminder_sent_at' => 'datetime',
+        'one_hour_before_reminder_sent_at' => 'datetime',
     ];
 
     /**
