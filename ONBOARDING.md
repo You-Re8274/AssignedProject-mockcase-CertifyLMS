@@ -101,6 +101,7 @@ routes/web.php            … 入口。URL・ミドルウェア・Controller の
 - 設定機能の Feature テストは `tests/Feature/Http/Settings/ProfileControllerTest.php`、本人操作の認可は `tests/Unit/Policies/UserPolicyTest.php` で検証する
 - 個人目標は `EnrollmentGoalPolicy` で閲覧を Enrollment の認可に連動させ、追加・編集・削除・達成状態変更は受講中の本人かつ学習中 Enrollment に限定する。受講停止状態の受講生は Enrollment 詳細を閲覧できない。入力は `Http/Requests/EnrollmentGoal/StoreRequest`・`UpdateRequest` で検証する
 - 個人目標の HTTP 操作は `EnrollmentGoalController` → `UseCases/EnrollmentGoal` で提供し、一覧は `Enrollment/ShowAction` が未達成・期日順に eager load して受講登録詳細へ渡す
+- 受講生メモは `EnrollmentNote` と `enrollment_notes` で受講登録・作成者を記録する。`EnrollmentNotePolicy` は admin と担当 coach の閲覧・追加を許可し、更新・削除は admin または担当中の作成者本人に限定する。入力は `Http/Requests/EnrollmentNote` で本文必須・最大2000字を検証する。初期メモは `EnrollmentNoteSeeder` が受講登録ごとに投入する
 - 業務通知は `ActivityNotificationService` / `ActivityNotification` で database + mail に同期配信する。チャット投稿・質問への回答・面談予約 / キャンセルで、送信者本人・管理者・受講中でないユーザーを除外し、自動完了面談では通知しない
 - `role:admin,coach` のような複数ロール指定もある（教材管理など）
 - `Route::middleware(['auth', 'role:student,coach', 'active-learning'])` — 受講中の受講生・コーチ共通の質問掲示板と chat。掲示板の資格公開状態・コーチ担当範囲は `QaThreadPolicy` と `QaThread::scopeVisibleTo()` で絞り込む
