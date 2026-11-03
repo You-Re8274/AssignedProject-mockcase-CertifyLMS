@@ -95,6 +95,7 @@ routes/web.php            … 入口。URL・ミドルウェア・Controller の
 - プラン管理は `PlanController` / `PlanPolicy` / `Http/Requests/Plan` / `UseCases/Plan` を使い、`/admin/plans` 配下を管理者専用で提供する。一覧は `users_count` を集計し、下書き → 公開中 → アーカイブ → 下書きの状態遷移と、受講者・プラン履歴がない下書きのみ削除できる制約を Action で管理する
 - 通知は Laravel 標準の `notifications` テーブルと `User` の `Notifiable` を使う。`NotificationPolicy` は受講生・コーチの本人通知のみ閲覧・既読化を許可し、初期通知データは `NotificationSeeder` が固定アカウントへ投入する
 - 通知一覧・既読操作は `NotificationController` の `notifications.index` / `notifications.markAsRead` / `notifications.markAllAsRead` で提供し、一覧は本人の通知をページネーションする。既読時の `action_url` は同一ホストの内部パスのみ許可する
+- 管理者お知らせは `Announcement` / `announcements` に配信内容・対象タイプ・対象ID・配信数・配信日時・作成者を記録し、対象タイプは `AnnouncementTargetType` で全受講生 / 資格指定 / ユーザー指定を表す。`AnnouncementPolicy` は管理者だけに閲覧・作成を許可し、`Http/Requests/Announcement/StoreRequest` で内容と対象を検証する。`AnnouncementSeeder` は3種類の初期配信と受講生側通知を投入する
 - 設定プロフィールの保存先は既存の `users` カラムを使う。氏名は `name`、自己紹介は `bio`、コーチの固定面談 URL は `meeting_url`、アバター URL は `avatar_url`。これらは `User::$fillable` に登録済みのため、プロフィール機能のための追加マイグレーションは不要
 - 設定画面の本人操作は `UserPolicy` の `viewOwnSettings` / `updateOwnProfile` / `updateOwnPassword` / `uploadOwnAvatar` / `deleteOwnAvatar` で判定し、`Http/Requests/Settings` の FormRequest でプロフィール・パスワード・アバターを検証する。ロールや利用状態では制限せず、コーチ以外からの `meeting_url` 更新は拒否する
 - 設定 HTTP 操作は `Settings/ProfileController` → `UseCases/Settings` で提供する。全ロール認証ルートに限定し `active-learning` は付与しないため、修了済ユーザーもプロフィール・パスワード・アバターを管理できる。アバターは public disk の本人専用ディレクトリに保存し、同ディレクトリ内のファイルのみ置換・削除する
