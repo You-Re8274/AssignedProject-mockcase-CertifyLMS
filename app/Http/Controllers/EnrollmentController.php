@@ -102,9 +102,9 @@ class EnrollmentController extends Controller
     ): View {
         $this->authorize('view', $enrollment);
 
-        $action($enrollment);
-
         $user = auth()->user();
+        $action($enrollment, $user);
+
         $progress = null;
 
         // staff(admin / coach)時のみ進捗集計を行う
