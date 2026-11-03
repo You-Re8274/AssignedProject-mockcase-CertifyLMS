@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\UseCases\Enrollment;
 
 use App\Models\Enrollment;
+use App\Models\EnrollmentNote;
+use App\Models\User;
 
 /**
  * Enrollment 詳細取得 Action。受講生 / コーチ / admin 共通(認可は Controller の Policy で済ませる前提)。
@@ -13,14 +15,22 @@ use App\Models\Enrollment;
  */
 final class ShowAction
 {
-    public function __invoke(Enrollment $enrollment): Enrollment
+    public function __invoke(Enrollment $enrollment, ?User $viewer = null): Enrollment
     {
-        return $enrollment->loadMissing([
+        $enrollment->loadMissing([
             'certification.category',
             'certification.coaches',
             'certificate',
             'latestStatusLog.changedBy',
             'goals' => fn ($query) => $query->displayOrder(),
         ]);
+
+        if ($viewer?->can('viewAny', [EnrollmentNote::class, $enrollment])) {
+            $enrollment->load([
+                'notes' => fn ($query) => $query->with('author')->orderByDesc('created_at'),
+            ]);
+        }
+
+        return $enrollment;
     }
 }
