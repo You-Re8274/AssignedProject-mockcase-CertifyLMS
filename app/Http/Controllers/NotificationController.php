@@ -41,7 +41,25 @@ class NotificationController extends Controller
             $record->markAsRead();
         }
 
+        if (($record->data['notification_type'] ?? null) === 'admin_announcement') {
+            return redirect()->route('notifications.show', $record);
+        }
+
         return redirect()->to($this->safeActionUrl($request, $record));
+    }
+
+    public function show(Request $request, string $notification): View
+    {
+        $record = $request->user()->notifications()->findOrFail($notification);
+        $this->authorize('view', $record);
+
+        if ($record->read_at === null) {
+            $record->markAsRead();
+        }
+
+        return view('notifications.show', [
+            'notification' => $record,
+        ]);
     }
 
     public function markAllAsRead(Request $request): RedirectResponse
