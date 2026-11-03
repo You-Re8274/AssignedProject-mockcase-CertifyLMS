@@ -55,9 +55,17 @@ class EnrollmentNotePolicy
 
     private function isAssignedCoach(User $user, Enrollment $enrollment): bool
     {
-        return $user->role === UserRole::Coach
-            && $enrollment->certification()
-                ->whereHas('coaches', fn ($query) => $query->where('users.id', $user->id))
-                ->exists();
+        if ($user->role !== UserRole::Coach) {
+            return false;
+        }
+
+        if ($enrollment->relationLoaded('certification')
+            && $enrollment->certification?->relationLoaded('coaches')) {
+            return $enrollment->certification->coaches->contains('id', $user->id);
+        }
+
+        return $enrollment->certification()
+            ->whereHas('coaches', fn ($query) => $query->where('users.id', $user->id))
+            ->exists();
     }
 }

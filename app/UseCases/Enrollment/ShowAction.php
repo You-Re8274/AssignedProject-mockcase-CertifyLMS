@@ -29,6 +29,10 @@ final class ShowAction
             $enrollment->load([
                 'notes' => fn ($query) => $query->with('author')->orderByDesc('created_at'),
             ]);
+
+            foreach ($enrollment->notes as $note) {
+                $note->setRelation('enrollment', $enrollment);
+            }
         }
 
         return $enrollment;
