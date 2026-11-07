@@ -161,6 +161,7 @@ erDiagram
 | マスタの CRUD 一式 | 出題分野マスタ: `QuestionCategoryController` + `app/UseCases/QuestionCategory/`（Index / Store / Update / Destroy）+ `app/Http/Requests/QuestionCategory/` + `QuestionCategoryPolicy` |
 | 階層リソースの CRUD・公開状態遷移・並び替え | 教材階層: `app/UseCases/Part/`（Store / Update / Destroy / Publish / Unpublish / Reorder）と、Chapter / Section の同型実装 |
 | 状態遷移を伴う業務操作 | 修了証の受領: `app/UseCases/Enrollment/ReceiveCertificateAction.php` / 模試の開始・提出: `app/UseCases/MockExamSession/StartAction.php`・`SubmitAction.php` |
+| 模試の採点 | `app/UseCases/MockExamSession/GradeAction.php` が正解数 / 問題数を百分率（0〜100）で保存し、合格基準点と比較する。`tests/Feature/UseCases/MockExamSession/GradeActionTest.php` で採点率を検証する |
 | 複数 Entity にまたがる集計・判定 | 学習ストリーク: `app/Services/StreakService.php` / 面談の空き枠計算: `app/Services/MeetingAvailabilityService.php` |
 | 認可（誰が何をできるか） | `app/Policies/MockExamPolicy.php`（ロール × 操作の判定）。FormRequest の `authorize()` や Controller から Policy へ委譲する形が基本 |
 | バリデーション | `app/Http/Requests/Section/StoreRequest.php`（rules + 日本語 attributes） |
