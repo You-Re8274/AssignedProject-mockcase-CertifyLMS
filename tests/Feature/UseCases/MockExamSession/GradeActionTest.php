@@ -11,11 +11,66 @@ use App\Models\MockExamQuestion;
 use App\Models\MockExamSession;
 use App\UseCases\MockExamSession\GradeAction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class GradeActionTest extends TestCase
 {
     use RefreshDatabase;
+
+    #[DataProvider('percentageScoreCases')]
+    public function test_score_percentage_uses_percentage_scale(
+        int $correctAnswers,
+        float $expectedScore,
+    ): void {
+        $mockExam = MockExam::factory()->published()->passingScore(60)->create();
+        $questions = collect();
+        for ($i = 0; $i < 5; $i++) {
+            $questions->push(MockExamQuestion::factory()->forMockExam($mockExam)->withOptions(4, 0)->create(['order' => $i]));
+        }
+
+        $session = MockExamSession::factory()
+            ->forMockExam($mockExam)
+            ->inProgress()
+            ->create([
+                'generated_question_ids' => $questions->pluck('id')->all(),
+                'total_questions' => 5,
+                'passing_score_snapshot' => 60,
+            ]);
+
+        foreach ($questions as $index => $question) {
+            $correctOption = $question->options->firstWhere('is_correct', true);
+            $wrongOption = $question->options->firstWhere('is_correct', false);
+            $selected = $index < $correctAnswers ? $correctOption : $wrongOption;
+
+            MockExamAnswer::factory()->create([
+                'mock_exam_session_id' => $session->id,
+                'mock_exam_question_id' => $question->id,
+                'selected_option_id' => $selected->id,
+                'selected_option_body' => $selected->body,
+                'is_correct' => false,
+                'answered_at' => now(),
+            ]);
+        }
+
+        (app(GradeAction::class))($session);
+
+        $session->refresh();
+        $this->assertSame($correctAnswers, $session->total_correct);
+        $this->assertEquals($expectedScore, (float) $session->score_percentage);
+        $this->assertTrue($session->pass);
+    }
+
+    /**
+     * @return array<string, array{0: int, 1: float}>
+     */
+    public static function percentageScoreCases(): array
+    {
+        return [
+            '4 of 5 answers is 80 percent' => [4, 80.00],
+            '5 of 5 answers is 100 percent' => [5, 100.00],
+        ];
+    }
 
     public function test_grades_session_with_mixed_correct_and_wrong_answers(): void
     {
@@ -133,6 +188,7 @@ class GradeActionTest extends TestCase
         $session->refresh();
         $this->assertSame(1, $session->total_correct);
         // 1/3 = 33.33% — 50% 未満で不合格
+        $this->assertEquals(33.33, (float) $session->score_percentage);
         $this->assertFalse($session->pass);
     }
 }
