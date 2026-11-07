@@ -31,7 +31,7 @@ Certify LMS は **マルチ資格対応の資格学習プラットフォーム**
 | Certification（資格） | 学習対象の資格（例: 基本情報技術者試験）。資格分類（CertificationCategory）に属し、公開状態（下書き / 公開中 / アーカイブ）を持つ |
 | Enrollment（受講登録） | **受講生 × 資格の受講関係。このドメインの中心エンティティ**。学習ステータス・目標受験日・学習タームを持つ |
 | EnrollmentGoal（個人目標） | 受講登録ごとの学習目標。目標期日と達成日時を持ち、未達成・期日が近い順に表示する |
-| Term（学習ターム） | 受講の段階。基礎学習（basic_learning）→ 実践（mock_practice）へ学習状況に応じて切り替わる |
+| Term（学習ターム） | 受講の段階。受験中 / 提出済 / 採点完了の模試セッションがあれば実践（mock_practice）、なければ基礎学習（basic_learning）。未開始・キャンセル済みセッションは実践ターム判定に含めない |
 | Part / Chapter / Section | 教材の 3 階層。本文（Markdown）は Section が持ち、画面では HTML に変換して表示する |
 | SectionQuestion（演習問題） | Section に紐づく選択式の問題。出題分野（QuestionCategory）を持つ |
 | MockExam（模試） | 本番形式の模擬試験。問題（MockExamQuestion）は演習問題とは**別管理**（共有しない） |
