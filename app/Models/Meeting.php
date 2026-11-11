@@ -42,6 +42,7 @@ class Meeting extends Model
         'day_before_reminder_sent_at',
         'one_hour_before_reminder_sent_at',
         'meeting_quota_transaction_id',
+        'google_calendar_event_id',
     ];
 
     protected $casts = [

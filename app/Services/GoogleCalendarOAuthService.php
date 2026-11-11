@@ -22,10 +22,10 @@ class GoogleCalendarOAuthService
 
     public function authorizationUrl(string $state): string
     {
-        $this->configureClient();
-        $this->client->setState($state);
+        $client = $this->configuredClient();
+        $client->setState($state);
 
-        return $this->client->createAuthUrl([
+        return $client->createAuthUrl([
             Calendar::CALENDAR_EVENTS,
             Calendar::CALENDAR_FREEBUSY,
         ]);
@@ -36,12 +36,12 @@ class GoogleCalendarOAuthService
      */
     public function exchangeCode(string $code): array
     {
-        $this->configureClient();
+        $client = $this->configuredClient();
 
-        return $this->client->fetchAccessTokenWithAuthCode($code);
+        return $client->fetchAccessTokenWithAuthCode($code);
     }
 
-    private function configureClient(): void
+    public function configuredClient(): Client
     {
         $this->client->setClientId((string) config('services.google.client_id'));
         $this->client->setClientSecret((string) config('services.google.client_secret'));
@@ -49,5 +49,7 @@ class GoogleCalendarOAuthService
         $this->client->setAccessType('offline');
         $this->client->setPrompt('consent');
         $this->client->setIncludeGrantedScopes(true);
+
+        return $this->client;
     }
 }
