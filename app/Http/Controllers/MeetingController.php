@@ -22,17 +22,22 @@ use App\Models\MeetingMemo;
 use App\Models\User;
 use App\Services\ActivityNotificationService;
 use App\Services\CoachMeetingLoadService;
+use App\Services\GoogleCalendarService;
 use App\Services\MeetingAvailabilityService;
 use App\Services\MeetingQuotaService;
 use App\UseCases\MeetingQuota\ConsumeQuotaAction;
 use App\UseCases\MeetingQuota\RefundQuotaAction;
 use Carbon\Carbon;
+use Google\Service\Exception as GoogleServiceException;
+use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
+use RuntimeException;
 
 /**
  * 1on1 面談予約 (Meeting) の HTTP エントリポイント。
@@ -169,6 +174,7 @@ class MeetingController extends Controller
         MeetingQuotaService $quotaService,
         ConsumeQuotaAction $consumeAction,
         ActivityNotificationService $notifications,
+        GoogleCalendarService $googleCalendar,
     ): RedirectResponse {
         $scheduledAt = Carbon::parse($request->validated('scheduled_at'));
         $topic = $request->validated('topic');
@@ -191,6 +197,11 @@ class MeetingController extends Controller
             $availabilityService->validateSlot($enrollment->certification, $scheduledAt);
 
             $candidates = $this->findAvailableCoaches($enrollment->certification, $scheduledAt);
+            if ($candidates->isEmpty()) {
+                throw new MeetingNoAvailableCoachException;
+            }
+
+            $candidates = $availabilityService->filterCalendarBusyCoaches($candidates, $scheduledAt);
             if ($candidates->isEmpty()) {
                 throw new MeetingNoAvailableCoachException;
             }
@@ -218,6 +229,16 @@ class MeetingController extends Controller
             return $meeting->fresh();
         });
 
+        try {
+            $googleCalendar->createMeetingEvent($meeting);
+        } catch (GoogleServiceException|GuzzleException|RuntimeException $exception) {
+            Log::warning('Google Calendar event creation failed; LMS meeting reservation remains active.', [
+                'meeting_id' => $meeting->id,
+                'coach_id' => $meeting->coach_id,
+                'exception' => $exception::class,
+            ]);
+        }
+
         $meeting->loadMissing(['student', 'coach']);
         $notifications->send(
             recipient: $meeting->coach,
@@ -241,6 +262,7 @@ class MeetingController extends Controller
         Meeting $meeting,
         RefundQuotaAction $refundAction,
         ActivityNotificationService $notifications,
+        GoogleCalendarService $googleCalendar,
     ): RedirectResponse {
         $this->authorize('cancel', $meeting);
 
@@ -264,6 +286,16 @@ class MeetingController extends Controller
 
             $refundAction($locked->student()->firstOrFail(), $locked->id);
         });
+
+        try {
+            $googleCalendar->deleteMeetingEvent($meeting->fresh());
+        } catch (GoogleServiceException|GuzzleException|RuntimeException $exception) {
+            Log::warning('Google Calendar event deletion failed; LMS meeting cancellation remains active.', [
+                'meeting_id' => $meeting->id,
+                'coach_id' => $meeting->coach_id,
+                'exception' => $exception::class,
+            ]);
+        }
 
         $meeting->loadMissing(['student', 'coach']);
         $notifications->send(

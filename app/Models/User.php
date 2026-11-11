@@ -45,11 +45,16 @@ class User extends Authenticatable
         'max_meetings',
         'meeting_url',
         'default_enrollment_id',
+        'google_access_token',
+        'google_refresh_token',
+        'google_token_expires_at',
     ];
 
     protected $hidden = [
         'password',
         'remember_token',
+        'google_access_token',
+        'google_refresh_token',
     ];
 
     protected $casts = [
@@ -62,6 +67,7 @@ class User extends Authenticatable
         'plan_started_at' => 'datetime',
         'plan_expires_at' => 'datetime',
         'max_meetings' => 'integer',
+        'google_token_expires_at' => 'datetime',
     ];
 
     /**

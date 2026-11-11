@@ -102,6 +102,8 @@ routes/web.php            … 入口。URL・ミドルウェア・Controller の
 - 面談リマインダーコマンド `notifications:send-meeting-reminders --window=eve|one_hour_before` は、`eve` が翌暦日の予約、`one_hour_before` が実行時刻から59〜60分後の予約を抽出し、受講中の受講生・コーチへ既存の `ActivityNotification`（database + mail）で通知する。前日分は毎日09:00、1時間前分は毎分スケジュール実行する
 - 面談リマインダーのFeatureテストは `tests/Feature/Commands/SendMeetingRemindersCommandTest.php` で実行し、両時間帯・対象外状態・通知チャネル・再実行時の重複防止・スケジュールを検証する。コマンドと回帰テストは `./vendor/bin/sail exec laravel.test php artisan test --compact tests/Feature/Commands/SendMeetingRemindersCommandTest.php tests/Feature/Commands/AutoCompleteMeetingsCommandTest.php tests/Unit/Services/ActivityNotificationServiceTest.php` で実行する
 - 面談予約の同時刻二重予約は、DB仮想生成カラム `meetings.occupied_slot_at` と `(coach_id, occupied_slot_at)` 一意制約で防ぐ。生成値は予約済 / 完了済のみ設定され、キャンセル履歴は残しつつ同枠の再予約を許可する。一意制約違反は予約ControllerでHTTP 409に変換する。関連テストは `./vendor/bin/sail exec laravel.test php artisan test --compact tests/Feature/Http/Meeting/MeetingControllerTest.php` で実行する
+- Google Calendar OAuth は `GoogleCalendarController` / `GoogleCalendarOAuthService` が担い、コーチのみ開始・コールバック・解除できる。OAuth state をセッションと照合し、トークン交換後に本人の `users` 行へ保存する。認可には calendar.events と calendar.freebusy のみ要求し、解除はローカル保存トークンを消去する。関連テストは `./vendor/bin/sail exec laravel.test php artisan test --compact tests/Feature/Http/Settings/GoogleCalendarControllerTest.php tests/Unit/Services/GoogleCalendarOAuthServiceTest.php` で実行する
+- `GoogleCalendarService` はコーチの期限切れアクセストークンをリフレッシュし、primary calendar の busy 区間取得、面談イベント作成 / 更新 / 削除を行う。イベントIDは `meetings.google_calendar_event_id` に保存し、作成の再試行時は既存イベントを更新する。`MeetingAvailabilityService` はbusy枠を空き枠と予約候補から除き、Google API 障害時は警告ログを残してLMS内の予約だけで判定する。予約・キャンセル時のイベント連携も同様にAPI失敗を記録し、LMS側の処理は成功させる。Calendar と面談連携の Feature テストは `./vendor/bin/sail exec laravel.test php artisan test --compact tests/Feature/Services/GoogleCalendarServiceTest.php tests/Feature/Http/Meeting/MeetingControllerTest.php` で実行する
 - 設定プロフィールの保存先は既存の `users` カラムを使う。氏名は `name`、自己紹介は `bio`、コーチの固定面談 URL は `meeting_url`、アバター URL は `avatar_url`。これらは `User::$fillable` に登録済みのため、プロフィール機能のための追加マイグレーションは不要
 - 設定画面の本人操作は `UserPolicy` の `viewOwnSettings` / `updateOwnProfile` / `updateOwnPassword` / `uploadOwnAvatar` / `deleteOwnAvatar` で判定し、`Http/Requests/Settings` の FormRequest でプロフィール・パスワード・アバターを検証する。ロールや利用状態では制限せず、コーチ以外からの `meeting_url` 更新は拒否する
 - 設定 HTTP 操作は `Settings/ProfileController` → `UseCases/Settings` で提供する。全ロール認証ルートに限定し `active-learning` は付与しないため、修了済ユーザーもプロフィール・パスワード・アバターを管理できる。アバターは public disk の本人専用ディレクトリに保存し、同ディレクトリ内のファイルのみ置換・削除する
@@ -139,7 +141,7 @@ erDiagram
 
 | クラスタ | テーブル | 概要 |
 |---|---|---|
-| ユーザー・契約 | users, user_status_logs, invitations, plans, user_plan_logs, meeting_packs, meeting_quota_transactions | 招待制のユーザー管理。プラン（受講期間 + 面談回数）の割当履歴と、面談回数の増減履歴（追記専用） |
+| ユーザー・契約 | users, user_status_logs, invitations, plans, user_plan_logs, meeting_packs, meeting_quota_transactions | 招待制のユーザー管理。プラン（受講期間 + 面談回数）の割当履歴と、面談回数の増減履歴（追記専用）。Google Calendar の OAuth トークンはコーチの users 行に保存し、アクセストークン / リフレッシュトークンはシリアライズ対象外、期限は datetime cast |
 | 資格・受講 | certifications, certification_categories, certification_coach_assignments, enrollments, enrollment_goals, enrollment_status_logs, certificates | 資格マスタ・コーチ割当・**受講登録（中心エンティティ）**・受講登録単位の個人目標・修了証 |
 | 教材 | parts, chapters, sections, section_images, question_categories, section_questions, section_question_options | 教材 3 階層と Section 紐づき演習問題、出題分野マスタ |
 | 演習解答 | section_question_answers, section_question_attempts | 受講生の演習問題への解答・受験履歴 |
