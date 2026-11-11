@@ -188,3 +188,10 @@ Gemini API キーを設定した後に `sail artisan config:clear` を実行し�
 2. 教材画面から AI 相談を開始した際、現在の教材コンテキストが自動で付与されていること。
 3. 過去の会話履歴がサイドバーや一覧から再開できること。
 4. 関連する自動テストがすべてグリーンでパスすること。
+
+```bash
+sail artisan test --compact \
+    tests/Feature/Http/AiChatControllerTest.php \
+    tests/Feature/Services/AiChatServiceTest.php \
+    tests/Feature/Services/GeminiServiceTest.php
+```
