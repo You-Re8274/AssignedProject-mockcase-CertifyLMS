@@ -276,6 +276,49 @@ class AiChatControllerTest extends TestCase
         $this->assertSame(2, AiChatMessage::query()->count());
     }
 
+    public function test_failed_message_can_be_retried_and_successful_retry_is_saved(): void
+    {
+        config(['services.gemini.api_key' => 'test-api-key']);
+        Http::fakeSequence()
+            ->push(['error' => 'temporary failure'], 503)
+            ->push([
+                'candidates' => [['content' => ['parts' => [['text' => '再試行後の回答']]]]],
+            ])
+            ->push([
+                'candidates' => [['content' => ['parts' => [['text' => '再試行の相談']]]]],
+            ]);
+        $student = User::factory()->student()->inProgress()->create();
+        $conversation = AiChatConversation::factory()->create(['user_id' => $student->id]);
+        $this->actingAs($student);
+
+        $this->postJson(route('ai-chat.conversations.messages.store', $conversation), ['content' => 'もう一度質問します'])
+            ->assertStatus(502);
+        $this->postJson(route('ai-chat.conversations.messages.store', $conversation), ['content' => 'もう一度質問します'])
+            ->assertOk()
+            ->assertJsonPath('assistant_message.content', '再試行後の回答');
+
+        $this->assertSame(2, AiChatDailyUsage::query()->where('user_id', $student->id)->value('request_count'));
+        $this->assertSame(4, $conversation->messages()->count());
+        $this->assertSame(2, $conversation->messages()->where('role', AiChatMessageRole::User->value)
+            ->where('content', 'もう一度質問します')->count());
+        $this->assertSame(1, $conversation->messages()->where('status', AiChatMessageStatus::Error->value)->count());
+    }
+
+    public function test_message_validation_rejects_content_over_two_thousand_characters(): void
+    {
+        $student = User::factory()->student()->inProgress()->create();
+        $conversation = AiChatConversation::factory()->create(['user_id' => $student->id]);
+
+        $this->actingAs($student)
+            ->postJson(route('ai-chat.conversations.messages.store', $conversation), [
+                'content' => str_repeat('a', 2001),
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('content');
+
+        $this->assertDatabaseCount('ai_chat_messages', 0);
+    }
+
     public function test_owner_can_rename_toggle_auto_title_and_delete_conversation(): void
     {
         $student = User::factory()->student()->inProgress()->create();
@@ -288,6 +331,21 @@ class AiChatControllerTest extends TestCase
         ])->assertRedirect(route('ai-chat.conversations.show', $conversation));
         $this->assertSame('手動タイトル', $conversation->fresh()->title);
         $this->assertFalse($conversation->fresh()->auto_title_enabled);
+
+        $otherStudent = User::factory()->student()->inProgress()->create();
+        $otherConversation = AiChatConversation::factory()->create(['user_id' => $otherStudent->id]);
+        $this->actingAs($student)
+            ->patch(route('ai-chat.conversations.update', $otherConversation), [
+                'title' => '不正な変更',
+            ])
+            ->assertForbidden();
+        $this->delete(route('ai-chat.conversations.destroy', $otherConversation))
+            ->assertForbidden();
+        $this->assertDatabaseHas('ai_chat_conversations', [
+            'id' => $otherConversation->id,
+            'title' => $otherConversation->title,
+            'deleted_at' => null,
+        ]);
 
         $this->delete(route('ai-chat.conversations.destroy', $conversation))
             ->assertRedirect(route('ai-chat.index'));

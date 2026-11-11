@@ -104,6 +104,25 @@ class AiChatServiceTest extends TestCase
         $this->assertSame(1, AiChatDailyUsage::query()->where('user_id', $conversation->user_id)->value('request_count'));
     }
 
+    public function test_title_generation_failure_does_not_fail_a_successful_answer(): void
+    {
+        config(['services.gemini.api_key' => 'test-api-key']);
+        Http::fakeSequence()
+            ->push([
+                'candidates' => [['content' => ['parts' => [['text' => '回答内容']]]]],
+                'usageMetadata' => ['promptTokenCount' => 10, 'candidatesTokenCount' => 5],
+            ])
+            ->push(['error' => 'title generation unavailable'], 503);
+        $conversation = $this->conversation();
+
+        $exchange = (new AiChatService(new GeminiService))->sendMessage($conversation, '質問内容');
+
+        $this->assertSame(AiChatMessageStatus::Completed, $exchange->assistantMessage->status);
+        $this->assertSame('回答内容', $exchange->assistantMessage->content);
+        $this->assertSame('新しい相談', $exchange->conversation->title);
+        $this->assertNotNull($exchange->assistantMessage->response_time_ms);
+    }
+
     private function conversation(): AiChatConversation
     {
         $student = User::factory()->student()->create();

@@ -53,6 +53,73 @@ final class GeminiService
         return $this->parseResponse($response, $model);
     }
 
+    public function suggestTitle(string $userMessage, string $assistantResponse): string
+    {
+        $apiKey = config('services.gemini.api_key');
+        if (! is_string($apiKey) || trim($apiKey) === '') {
+            throw new GeminiApiException(
+                'Gemini API key is not configured.',
+                reason: 'missing_api_key',
+            );
+        }
+
+        $model = (string) config('ai-chat.gemini.model', 'gemini-2.5-flash');
+        $url = rtrim((string) config('ai-chat.gemini.base_url'), '/')
+            .'/models/'.rawurlencode($model).':generateContent';
+
+        try {
+            $response = Http::acceptJson()
+                ->withHeaders(['x-goog-api-key' => $apiKey])
+                ->timeout((int) config('ai-chat.gemini.timeout', 30))
+                ->post($url, [
+                    'systemInstruction' => [
+                        'parts' => [[
+                            'text' => '会話内容を表す短いタイトルを日本語で 1 つだけ作成してください。説明、引用符、句読点は付けず、30 文字以内にしてください。',
+                        ]],
+                    ],
+                    'contents' => [[
+                        'role' => 'user',
+                        'parts' => [[
+                            'text' => "質問:\n{$userMessage}\n\n回答:\n{$assistantResponse}",
+                        ]],
+                    ]],
+                ]);
+        } catch (ConnectionException) {
+            throw new GeminiApiException(
+                'Gemini API could not be reached.',
+                reason: 'connection_error',
+            );
+        }
+
+        if (! $response->successful()) {
+            throw new GeminiApiException(
+                'Gemini API returned an unsuccessful response.',
+                upstreamStatus: $response->status(),
+                reason: 'http_error',
+            );
+        }
+
+        $title = data_get($response->json(), 'candidates.0.content.parts.0.text');
+        if (! is_string($title) || trim($title) === '') {
+            throw new GeminiApiException(
+                'Gemini API returned an invalid title.',
+                upstreamStatus: $response->status(),
+                reason: 'invalid_response',
+            );
+        }
+
+        $title = trim($title, " \t\n\r\0\x0B\"'「」『』");
+        if ($title === '') {
+            throw new GeminiApiException(
+                'Gemini API returned an empty title.',
+                upstreamStatus: $response->status(),
+                reason: 'invalid_response',
+            );
+        }
+
+        return mb_substr($title, 0, 100);
+    }
+
     /**
      * @return array<string, mixed>
      */

@@ -75,8 +75,25 @@ final class AiChatService
                 'model_name' => $response->modelName,
                 'input_tokens' => $response->inputTokens,
                 'output_tokens' => $response->outputTokens,
-                'response_time_ms' => (int) ((hrtime(true) - $startedAt) / 1_000_000),
                 'error_detail' => null,
+            ])->save();
+
+            $conversation = $conversation->refresh();
+            if ($conversation->auto_title_enabled) {
+                try {
+                    $title = $this->gemini->suggestTitle($userMessage->content, $response->content);
+                    $conversation->forceFill(['title' => $title])->save();
+                } catch (GeminiApiException $exception) {
+                    Log::channel('ai-chat')->warning('AI chat title generation failed.', [
+                        'conversation_id' => $conversation->id,
+                        'reason' => $exception->reason,
+                        'upstream_status' => $exception->upstreamStatus,
+                    ]);
+                }
+            }
+
+            $assistantMessage->forceFill([
+                'response_time_ms' => (int) ((hrtime(true) - $startedAt) / 1_000_000),
             ])->save();
 
             return new AiChatExchange(
