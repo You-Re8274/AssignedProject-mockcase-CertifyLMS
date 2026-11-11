@@ -142,6 +142,7 @@ erDiagram
 | クラスタ | テーブル | 概要 |
 |---|---|---|
 | ユーザー・契約 | users, user_status_logs, invitations, plans, user_plan_logs, meeting_packs, meeting_quota_transactions | 招待制のユーザー管理。プラン（受講期間 + 面談回数）の割当履歴と、面談回数の増減履歴（追記専用）。Google Calendar の OAuth トークンはコーチの users 行に保存し、アクセストークン / リフレッシュトークンはシリアライズ対象外、期限は datetime cast |
+| AI 相談 | ai_chat_conversations, ai_chat_messages, ai_chat_daily_usages | 受講生所有の会話とメッセージ、Section / Enrollment の任意コンテキストを保持。メッセージは role / status enum と応答時間・モデル名・トークン数・エラー詳細を記録し、日次利用は user_id + usage_date の一意キーで集計 |
 | 資格・受講 | certifications, certification_categories, certification_coach_assignments, enrollments, enrollment_goals, enrollment_status_logs, certificates | 資格マスタ・コーチ割当・**受講登録（中心エンティティ）**・受講登録単位の個人目標・修了証 |
 | 教材 | parts, chapters, sections, section_images, question_categories, section_questions, section_question_options | 教材 3 階層と Section 紐づき演習問題、出題分野マスタ |
 | 演習解答 | section_question_answers, section_question_attempts | 受講生の演習問題への解答・受験履歴 |
@@ -187,7 +188,7 @@ erDiagram
 - **教材階層と演習問題**: 公開 / 下書きが混在し、全文検索でヒットする Markdown 本文入り（`ContentSeeder`）
 - **模試・受験履歴、面談・対応可能時間帯、チャットルーム・メッセージ、質問掲示板のスレッド・回答、修了証** など各機能のデモデータ
 
-`DatabaseSeeder` の call 順がそのまま依存順になっています（ユーザー → プラン → 資格 → 受講登録・個人目標 → 教材 → 学習・模試・面談・チャット・質問掲示板）。固定受講生とデモ受講登録には達成済・未達成の個人目標を投入します（`EnrollmentGoalSeeder`）。**新しいテーブルを追加するタスクでは、この Seeder 群に倣って動作確認用データを足す**と、画面確認とデモがやりやすくなります。
+`DatabaseSeeder` の call 順がそのまま依存順になっています（ユーザー → プラン → 資格 → 受講登録・個人目標 → 教材 → 学習・模試・面談・チャット・質問掲示板・AI 相談）。固定受講生とデモ受講登録には達成済・未達成の個人目標を投入します（`EnrollmentGoalSeeder`）。`AiChatSeeder` は固定受講生に教材コンテキストあり / なしの会話と API エラー状態の応答を投入します。**新しいテーブルを追加するタスクでは、この Seeder 群に倣って動作確認用データを足す**と、画面確認とデモがやりやすくなります。
 
 ---
 
