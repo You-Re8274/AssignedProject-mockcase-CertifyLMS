@@ -176,8 +176,9 @@ sail artisan test --compact \
 - `GEMINI_API_KEY` — AI チャットボット機能（Gemini API）に使用します。
     1. [Google AI Studio](https://aistudio.google.com/) にアクセスし、API キーを作成します。
     2. 発行された API キーを `.env` の `GEMINI_API_KEY` に設定してください。
+    3. `AI_CHAT_ENABLED=true` にすると機能が有効になります（既定値は `false`）。必要に応じて `AI_CHAT_DAILY_LIMIT`、`AI_CHAT_HISTORY_MESSAGES`、`GEMINI_MODEL`、`GEMINI_TIMEOUT` を調整し、`sail artisan config:clear` を実行してください。
 
-> 機能全体を無効化する場合は `.env` 等で制御可能です。
+> API キーが未設定または Gemini API が一時的に利用できない場合も受講生の質問は履歴に保存され、エラー状態の応答として記録されます。日次送信上限は失敗した送信も含めてカウントします。
 
 ### Gemini AI チャットボットの手動確認
 
