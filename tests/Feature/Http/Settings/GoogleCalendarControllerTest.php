@@ -90,6 +90,124 @@ class GoogleCalendarControllerTest extends TestCase
         $this->assertTrue($coach->google_token_expires_at->isFuture());
     }
 
+    public function test_callback_preserves_existing_refresh_token_when_google_does_not_return_a_new_one(): void
+    {
+        $coach = User::factory()->coach()->create([
+            'google_refresh_token' => 'existing-refresh-token',
+        ]);
+        $oauth = Mockery::mock(GoogleCalendarOAuthService::class);
+        $oauth->shouldReceive('isConfigured')->twice()->andReturnTrue();
+        $oauth->shouldReceive('authorizationUrl')
+            ->once()
+            ->andReturnUsing(fn (string $state) => 'https://accounts.google.test/oauth?state='.$state);
+        $oauth->shouldReceive('exchangeCode')
+            ->once()
+            ->andReturn([
+                'access_token' => 'rotated-access-token',
+                'expires_in' => 1800,
+            ]);
+        $this->app->instance(GoogleCalendarOAuthService::class, $oauth);
+
+        $authorizationResponse = $this->actingAs($coach)
+            ->get(route('settings.google-calendar.redirect'));
+        parse_str((string) parse_url($authorizationResponse->headers->get('Location'), PHP_URL_QUERY), $query);
+
+        $this->get(route('settings.google-calendar.callback', [
+            'state' => $query['state'],
+            'code' => 'valid-auth-code',
+        ]))->assertRedirect('/settings/availability');
+
+        $coach->refresh();
+        $this->assertSame('rotated-access-token', $coach->google_access_token);
+        $this->assertSame('existing-refresh-token', $coach->google_refresh_token);
+    }
+
+    public function test_callback_handles_google_denial_without_overwriting_existing_tokens(): void
+    {
+        $coach = User::factory()->coach()->create([
+            'google_access_token' => 'existing-access-token',
+            'google_refresh_token' => 'existing-refresh-token',
+            'google_token_expires_at' => now()->addHour(),
+        ]);
+        $oauth = Mockery::mock(GoogleCalendarOAuthService::class);
+        $oauth->shouldReceive('isConfigured')->once()->andReturnTrue();
+        $oauth->shouldReceive('authorizationUrl')
+            ->once()
+            ->andReturnUsing(fn (string $state) => 'https://accounts.google.test/oauth?state='.$state);
+        $oauth->shouldNotReceive('exchangeCode');
+        $this->app->instance(GoogleCalendarOAuthService::class, $oauth);
+
+        $authorizationResponse = $this->actingAs($coach)
+            ->get(route('settings.google-calendar.redirect'));
+        parse_str((string) parse_url($authorizationResponse->headers->get('Location'), PHP_URL_QUERY), $query);
+
+        $this->get(route('settings.google-calendar.callback', [
+            'state' => $query['state'],
+            'error' => 'access_denied',
+        ]))
+            ->assertRedirect('/settings/availability')
+            ->assertSessionHas('error');
+
+        $this->assertSame('existing-access-token', $coach->fresh()->google_access_token);
+        $this->assertSame('existing-refresh-token', $coach->fresh()->google_refresh_token);
+    }
+
+    public function test_callback_state_is_one_time_and_missing_code_is_rejected(): void
+    {
+        $coach = User::factory()->coach()->create();
+        $oauth = Mockery::mock(GoogleCalendarOAuthService::class);
+        $oauth->shouldReceive('isConfigured')->once()->andReturnTrue();
+        $oauth->shouldReceive('authorizationUrl')
+            ->once()
+            ->andReturnUsing(fn (string $state) => 'https://accounts.google.test/oauth?state='.$state);
+        $oauth->shouldNotReceive('exchangeCode');
+        $this->app->instance(GoogleCalendarOAuthService::class, $oauth);
+
+        $authorizationResponse = $this->actingAs($coach)
+            ->get(route('settings.google-calendar.redirect'));
+        parse_str((string) parse_url($authorizationResponse->headers->get('Location'), PHP_URL_QUERY), $query);
+
+        $callbackUrl = route('settings.google-calendar.callback', ['state' => $query['state']]);
+        $this->get($callbackUrl)
+            ->assertRedirect('/settings/availability')
+            ->assertSessionHas('error');
+
+        $this->get(route('settings.google-calendar.callback', [
+            'state' => $query['state'],
+            'code' => 'replayed-code',
+        ]))
+            ->assertRedirect('/settings/availability')
+            ->assertSessionHas('error');
+    }
+
+    public function test_authorization_and_callback_reject_external_redirect_paths(): void
+    {
+        $coach = User::factory()->coach()->create();
+        $oauth = Mockery::mock(GoogleCalendarOAuthService::class);
+        $oauth->shouldReceive('isConfigured')->twice()->andReturnTrue();
+        $oauth->shouldReceive('authorizationUrl')
+            ->once()
+            ->andReturnUsing(fn (string $state) => 'https://accounts.google.test/oauth?state='.$state);
+        $oauth->shouldReceive('exchangeCode')
+            ->once()
+            ->andReturn([
+                'access_token' => 'access-token',
+                'expires_in' => 3600,
+            ]);
+        $this->app->instance(GoogleCalendarOAuthService::class, $oauth);
+
+        $authorizationResponse = $this->actingAs($coach)
+            ->get(route('settings.google-calendar.redirect', [
+                'redirect_path' => 'https://attacker.example.test',
+            ]));
+        parse_str((string) parse_url($authorizationResponse->headers->get('Location'), PHP_URL_QUERY), $query);
+
+        $this->get(route('settings.google-calendar.callback', [
+            'state' => $query['state'],
+            'code' => 'valid-code',
+        ]))->assertRedirect('/settings/availability');
+    }
+
     public function test_callback_rejects_invalid_state_without_saving_tokens(): void
     {
         $coach = User::factory()->coach()->create();
@@ -127,6 +245,11 @@ class GoogleCalendarControllerTest extends TestCase
 
             $this->delete(route('settings.google-calendar.destroy'))
                 ->assertForbidden();
+
+            $this->get(route('settings.google-calendar.callback', [
+                'state' => 'state',
+                'code' => 'code',
+            ]))->assertForbidden();
         }
     }
 

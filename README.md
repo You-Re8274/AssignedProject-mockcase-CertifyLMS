@@ -151,3 +151,24 @@ sail bin pint --test     # 整形漏れの確認（CI 相当のチェック）
     4. 発行されたクライアント ID とクライアント シークレットを `.env` に設定してください。
 
 > Google OAuth トークンは本機能では平文で保存されます。本番運用前に、アクセストークン・リフレッシュトークンを暗号化して保存する対策を導入してください。
+
+### Google Calendar 連携の手動確認
+
+ローカルで Google API を実際に確認する場合は、上記の OAuth 設定を行い、`.env` へ値を設定した後に `sail artisan config:clear` を実行してください。Google アカウントを持つコーチでログインし、次を確認します。
+
+1. 設定 → 面談設定から Google カレンダー連携を開始し、Google の同意後に「連携中」と表示される。
+2. Google の primary calendar にテスト予定を作成し、予定と重なる日時が受講生の予約可能枠に表示されない。
+3. 空いている枠を受講生で予約し、コーチの primary calendar に面談（1時間、面談 URL を説明に含む）が作成される。
+4. 予約をキャンセルし、対応する Google カレンダーイベントが削除される。
+5. コーチが連携を解除すると、その後はGoogle予定の照合・イベント同期を行わず、LMS内の面談予約は引き続き利用できる。
+
+実アカウントを使わない回帰テストでは Google API 通信をモックし、以下を実行します。
+
+```bash
+sail artisan test --compact \
+    tests/Feature/Http/Settings/GoogleCalendarControllerTest.php \
+    tests/Unit/Services/GoogleCalendarOAuthServiceTest.php \
+    tests/Feature/Services/GoogleCalendarServiceTest.php \
+    tests/Feature/Http/Meeting/MeetingControllerTest.php \
+    tests/Unit/Services/MeetingAvailabilityServiceTest.php
+```

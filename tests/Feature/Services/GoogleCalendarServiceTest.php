@@ -10,6 +10,7 @@ use App\Services\GoogleCalendarOAuthService;
 use App\Services\GoogleCalendarService;
 use Carbon\CarbonImmutable;
 use Google\Client;
+use Google\Service\Exception as GoogleServiceException;
 use GuzzleHttp\Client as HttpClient;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
@@ -154,6 +155,47 @@ class GoogleCalendarServiceTest extends TestCase
 
         $this->expectException(RuntimeException::class);
         $service->busyIntervals($coach, now(), now()->addHour());
+    }
+
+    public function test_failed_event_deletion_keeps_event_id_for_a_later_retry(): void
+    {
+        $coach = User::factory()->coach()->create([
+            'google_access_token' => 'access-token',
+            'google_token_expires_at' => now()->addHour(),
+        ]);
+        $meeting = Meeting::factory()->forCoach($coach)->create([
+            'google_calendar_event_id' => 'event-to-retry',
+        ]);
+        $history = [];
+        $service = $this->serviceWithResponses([
+            new Response(404, ['Content-Type' => 'application/json'], json_encode([
+                'error' => [
+                    'code' => 404,
+                    'message' => 'Event not found',
+                ],
+            ])),
+        ], $history);
+
+        try {
+            $service->deleteMeetingEvent($meeting);
+            $this->fail('Expected Google Calendar API failure.');
+        } catch (GoogleServiceException) {
+            $this->assertSame('event-to-retry', $meeting->fresh()->google_calendar_event_id);
+        }
+    }
+
+    public function test_invalid_busy_interval_is_rejected_before_api_call(): void
+    {
+        $coach = User::factory()->coach()->create([
+            'google_access_token' => 'access-token',
+            'google_token_expires_at' => now()->addHour(),
+        ]);
+        $history = [];
+        $service = $this->serviceWithResponses([], $history);
+        $sameInstant = now();
+
+        $this->expectException(\InvalidArgumentException::class);
+        $service->busyIntervals($coach, $sameInstant, $sameInstant->copy());
     }
 
     /**
