@@ -79,12 +79,12 @@
 <div class="space-y-6">
     {{-- Google カレンダー連携セクション(連携ルートが未登録の環境では非表示) --}}
     @if (Route::has('settings.google-calendar.redirect'))
-        @php $credential = $user->googleCredential; @endphp
+        @php $isGoogleCalendarConnected = filled($user->google_access_token) || filled($user->google_refresh_token); @endphp
     <x-card padding="md" shadow="sm">
         <x-slot:header>
             <div class="flex items-center justify-between gap-3">
                 <h2 class="text-sm font-bold text-ink-900">Googleカレンダー連携</h2>
-                @if ($credential)
+                @if ($isGoogleCalendarConnected)
                     <x-badge variant="success" size="sm">
                         <x-icon name="check-circle" class="w-3.5 h-3.5" />
                         連携中
@@ -95,16 +95,13 @@
             </div>
         </x-slot:header>
 
-        @if ($credential)
+        @if ($isGoogleCalendarConnected)
             <div class="space-y-3">
                 <div class="rounded-xl bg-success-50 border border-success-200 px-4 py-3 flex items-center gap-3">
                     <x-icon name="calendar-days" class="w-5 h-5 text-success-700 shrink-0" />
                     <div class="min-w-0 text-sm">
                         <div class="font-semibold text-success-900">
-                            連携中: <span class="font-mono">{{ $credential->calendar_id }}</span>
-                        </div>
-                        <div class="text-xs text-success-700 mt-0.5">
-                            連携日時: <span class="tabular-nums">{{ $credential->connected_at?->format('Y-m-d H:i') }}</span>
+                            連携中: <span class="font-mono">primary</span>
                         </div>
                     </div>
                 </div>
