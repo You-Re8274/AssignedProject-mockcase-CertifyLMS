@@ -139,7 +139,7 @@ erDiagram
 
 | クラスタ | テーブル | 概要 |
 |---|---|---|
-| ユーザー・契約 | users, user_status_logs, invitations, plans, user_plan_logs, meeting_packs, meeting_quota_transactions | 招待制のユーザー管理。プラン（受講期間 + 面談回数）の割当履歴と、面談回数の増減履歴（追記専用） |
+| ユーザー・契約 | users, user_status_logs, invitations, plans, user_plan_logs, meeting_packs, meeting_quota_transactions | 招待制のユーザー管理。プラン（受講期間 + 面談回数）の割当履歴と、面談回数の増減履歴（追記専用）。Google Calendar の OAuth トークンはコーチの users 行に保存し、アクセストークン / リフレッシュトークンはシリアライズ対象外、期限は datetime cast |
 | 資格・受講 | certifications, certification_categories, certification_coach_assignments, enrollments, enrollment_goals, enrollment_status_logs, certificates | 資格マスタ・コーチ割当・**受講登録（中心エンティティ）**・受講登録単位の個人目標・修了証 |
 | 教材 | parts, chapters, sections, section_images, question_categories, section_questions, section_question_options | 教材 3 階層と Section 紐づき演習問題、出題分野マスタ |
 | 演習解答 | section_question_answers, section_question_attempts | 受講生の演習問題への解答・受験履歴 |

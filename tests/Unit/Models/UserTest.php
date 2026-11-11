@@ -222,6 +222,7 @@ class UserTest extends TestCase
         $plan = Plan::factory()->published()->create();
         $user = User::factory()->student()->withPlan($plan)->create([
             'email_verified_at' => '2026-01-01 10:00:00',
+            'google_token_expires_at' => '2026-01-01 11:00:00',
         ]);
 
         // Act
@@ -231,6 +232,23 @@ class UserTest extends TestCase
         $this->assertInstanceOf(Carbon::class, $fresh->email_verified_at);
         $this->assertInstanceOf(Carbon::class, $fresh->plan_started_at, 'plan_started_at は Carbon にキャストされるはず');
         $this->assertInstanceOf(Carbon::class, $fresh->plan_expires_at);
+        $this->assertInstanceOf(Carbon::class, $fresh->google_token_expires_at);
+    }
+
+    public function test_google_calendar_tokens_are_mass_assignable_but_hidden_from_serialization(): void
+    {
+        $user = User::factory()->coach()->create([
+            'google_access_token' => 'access-token',
+            'google_refresh_token' => 'refresh-token',
+            'google_token_expires_at' => now()->addHour(),
+        ]);
+
+        $serialized = $user->fresh()->toArray();
+
+        $this->assertArrayNotHasKey('google_access_token', $serialized);
+        $this->assertArrayNotHasKey('google_refresh_token', $serialized);
+        $this->assertSame('access-token', $user->google_access_token);
+        $this->assertSame('refresh-token', $user->google_refresh_token);
     }
 
     public function test_boolean_and_integer_casts_return_native_types(): void
