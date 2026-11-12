@@ -90,6 +90,7 @@ routes/web.php            … 入口。URL・ミドルウェア・Controller の
 
 - `Route::middleware('auth')` — 全ロール共通（ダッシュボード等）
 - `Route::middleware(['auth', 'role:student', 'active-learning'])` — 受講生専用（学習・模試・面談など）。`active-learning` は「学習中ステータスの受講生のみ」を強制する
+- AI相談 `/ai-chat/*` は `auth` / `role:student` / `active-learning` / `ai-chat-enabled` をすべて要求する。`ai-chat-enabled` は `AI_CHAT_ENABLED` が OFF の場合に 404 を返し、`AiChatConversationPolicy` は所有者本人の会話操作だけを許可する。Section コンテキストは公開教材かつ受講中資格のものに限定
 - `Route::middleware(['auth', 'role:admin'])->prefix('admin')` — 管理者専用
 - 面談パック管理は `MeetingPackController` / `MeetingPackPolicy` / `Http/Requests/MeetingPack` を使い、`/admin/meeting-packs` 配下を管理者専用で提供する
 - プラン管理は `PlanController` / `PlanPolicy` / `Http/Requests/Plan` / `UseCases/Plan` を使い、`/admin/plans` 配下を管理者専用で提供する。一覧は `users_count` を集計し、下書き → 公開中 → アーカイブ → 下書きの状態遷移と、受講者・プラン履歴がない下書きのみ削除できる制約を Action で管理する
@@ -104,6 +105,8 @@ routes/web.php            … 入口。URL・ミドルウェア・Controller の
 - 面談予約の同時刻二重予約は、DB仮想生成カラム `meetings.occupied_slot_at` と `(coach_id, occupied_slot_at)` 一意制約で防ぐ。生成値は予約済 / 完了済のみ設定され、キャンセル履歴は残しつつ同枠の再予約を許可する。一意制約違反は予約ControllerでHTTP 409に変換する。関連テストは `./vendor/bin/sail exec laravel.test php artisan test --compact tests/Feature/Http/Meeting/MeetingControllerTest.php` で実行する
 - Google Calendar OAuth は `GoogleCalendarController` / `GoogleCalendarOAuthService` が担い、コーチのみ開始・コールバック・解除できる。OAuth state をセッションと照合し、トークン交換後に本人の `users` 行へ保存する。認可には calendar.events と calendar.freebusy のみ要求し、解除はローカル保存トークンを消去する。関連テストは `./vendor/bin/sail exec laravel.test php artisan test --compact tests/Feature/Http/Settings/GoogleCalendarControllerTest.php tests/Unit/Services/GoogleCalendarOAuthServiceTest.php` で実行する
 - `GoogleCalendarService` はコーチの期限切れアクセストークンをリフレッシュし、primary calendar の busy 区間取得、面談イベント作成 / 更新 / 削除を行う。イベントIDは `meetings.google_calendar_event_id` に保存し、作成の再試行時は既存イベントを更新する。`MeetingAvailabilityService` はbusy枠を空き枠と予約候補から除き、Google API 障害時は警告ログを残してLMS内の予約だけで判定する。予約・キャンセル時のイベント連携も同様にAPI失敗を記録し、LMS側の処理は成功させる。Calendar と面談連携の Feature テストは `./vendor/bin/sail exec laravel.test php artisan test --compact tests/Feature/Services/GoogleCalendarServiceTest.php tests/Feature/Http/Meeting/MeetingControllerTest.php` で実行する
+- Gemini AI 相談は `AiChatController` / `AiChatConversationPolicy` / `Http/Requests/AiChat` で提供し、`AiChatService` が日次上限と質問・応答の永続化、`GeminiService` が会話履歴・資格・教材コンテキスト付き同期 API 通信を担う。API 障害時は質問を残して assistant message を error にし、応答時間・モデル名・トークン数などはDBと専用ログに記録する。履歴JSONには運用メタデータを含めない
+- AI相談は `/ai-chat`, `/ai-chat/conversations`, `/ai-chat/conversations/{conversation}`, `/ai-chat/conversations/{conversation}/messages` を提供する。教材別ウィジェットは本人の公開教材・受講資格に紐づく会話を再利用し、タイトル自動生成は会話ごとの設定で停止できる。関連テストは `./vendor/bin/sail exec laravel.test php artisan test --compact tests/Feature/Http/AiChatControllerTest.php tests/Feature/Services/AiChatServiceTest.php tests/Feature/Services/GeminiServiceTest.php tests/Unit/Models/AiChatConversationTest.php tests/Feature/AiChat/AiChatSeederTest.php`
 - 設定プロフィールの保存先は既存の `users` カラムを使う。氏名は `name`、自己紹介は `bio`、コーチの固定面談 URL は `meeting_url`、アバター URL は `avatar_url`。これらは `User::$fillable` に登録済みのため、プロフィール機能のための追加マイグレーションは不要
 - 設定画面の本人操作は `UserPolicy` の `viewOwnSettings` / `updateOwnProfile` / `updateOwnPassword` / `uploadOwnAvatar` / `deleteOwnAvatar` で判定し、`Http/Requests/Settings` の FormRequest でプロフィール・パスワード・アバターを検証する。ロールや利用状態では制限せず、コーチ以外からの `meeting_url` 更新は拒否する
 - 設定 HTTP 操作は `Settings/ProfileController` → `UseCases/Settings` で提供する。全ロール認証ルートに限定し `active-learning` は付与しないため、修了済ユーザーもプロフィール・パスワード・アバターを管理できる。アバターは public disk の本人専用ディレクトリに保存し、同ディレクトリ内のファイルのみ置換・削除する
@@ -142,6 +145,7 @@ erDiagram
 | クラスタ | テーブル | 概要 |
 |---|---|---|
 | ユーザー・契約 | users, user_status_logs, invitations, plans, user_plan_logs, meeting_packs, meeting_quota_transactions | 招待制のユーザー管理。プラン（受講期間 + 面談回数）の割当履歴と、面談回数の増減履歴（追記専用）。Google Calendar の OAuth トークンはコーチの users 行に保存し、アクセストークン / リフレッシュトークンはシリアライズ対象外、期限は datetime cast |
+| AI 相談 | ai_chat_conversations, ai_chat_messages, ai_chat_daily_usages | 受講生所有の会話とメッセージ、Section / Enrollment の任意コンテキストを保持。メッセージは role / status enum と応答時間・モデル名・トークン数・エラー詳細を記録し、日次利用は user_id + usage_date の一意キーで集計 |
 | 資格・受講 | certifications, certification_categories, certification_coach_assignments, enrollments, enrollment_goals, enrollment_status_logs, certificates | 資格マスタ・コーチ割当・**受講登録（中心エンティティ）**・受講登録単位の個人目標・修了証 |
 | 教材 | parts, chapters, sections, section_images, question_categories, section_questions, section_question_options | 教材 3 階層と Section 紐づき演習問題、出題分野マスタ |
 | 演習解答 | section_question_answers, section_question_attempts | 受講生の演習問題への解答・受験履歴 |
@@ -187,7 +191,7 @@ erDiagram
 - **教材階層と演習問題**: 公開 / 下書きが混在し、全文検索でヒットする Markdown 本文入り（`ContentSeeder`）
 - **模試・受験履歴、面談・対応可能時間帯、チャットルーム・メッセージ、質問掲示板のスレッド・回答、修了証** など各機能のデモデータ
 
-`DatabaseSeeder` の call 順がそのまま依存順になっています（ユーザー → プラン → 資格 → 受講登録・個人目標 → 教材 → 学習・模試・面談・チャット・質問掲示板）。固定受講生とデモ受講登録には達成済・未達成の個人目標を投入します（`EnrollmentGoalSeeder`）。**新しいテーブルを追加するタスクでは、この Seeder 群に倣って動作確認用データを足す**と、画面確認とデモがやりやすくなります。
+`DatabaseSeeder` の call 順がそのまま依存順になっています（ユーザー → プラン → 資格 → 受講登録・個人目標 → 教材 → 学習・模試・面談・チャット・質問掲示板・AI 相談）。固定受講生とデモ受講登録には達成済・未達成の個人目標を投入します（`EnrollmentGoalSeeder`）。`AiChatSeeder` は固定受講生に教材コンテキストあり / なしの会話と API エラー状態の応答を投入します。**新しいテーブルを追加するタスクでは、この Seeder 群に倣って動作確認用データを足す**と、画面確認とデモがやりやすくなります。
 
 ---
 

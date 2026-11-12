@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\AiChatController;
 use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\Auth\OnboardingController;
 use App\Http\Controllers\BrowseController;
@@ -156,6 +157,22 @@ Route::middleware(['auth', 'role:student', 'active-learning'])
     ->group(function () {
         Route::put('default-enrollment/{enrollment}', [SettingsDefaultEnrollmentController::class, 'update'])
             ->name('default-enrollment.update');
+    });
+
+// ============================================================
+// 受講生専用 Gemini AI 相談(機能フラグ + 受講中状態)
+// ============================================================
+Route::middleware(['auth', 'role:student', 'active-learning', 'ai-chat-enabled'])
+    ->prefix('ai-chat')
+    ->name('ai-chat.')
+    ->group(function () {
+        Route::get('/', [AiChatController::class, 'index'])->name('index');
+        Route::post('conversations', [AiChatController::class, 'store'])->name('conversations.store');
+        Route::get('conversations/{conversation}', [AiChatController::class, 'show'])->name('conversations.show');
+        Route::patch('conversations/{conversation}', [AiChatController::class, 'update'])->name('conversations.update');
+        Route::delete('conversations/{conversation}', [AiChatController::class, 'destroy'])->name('conversations.destroy');
+        Route::post('conversations/{conversation}/messages', [AiChatController::class, 'storeMessage'])
+            ->name('conversations.messages.store');
     });
 
 // ============================================================

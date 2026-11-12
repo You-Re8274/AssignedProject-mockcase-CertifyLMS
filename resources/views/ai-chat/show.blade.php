@@ -151,6 +151,13 @@
                     :required="true"
                     :maxlength="100"
                 />
+                <label class="mt-3 inline-flex items-center gap-2 text-sm text-ink-700">
+                    <input type="hidden" name="auto_title_enabled" value="0">
+                    <input type="checkbox" name="auto_title_enabled" value="1"
+                        @checked(old('auto_title_enabled', $conversation->auto_title_enabled))
+                        class="rounded border-subtle text-secondary-600 focus:ring-secondary-500">
+                    AI によるタイトルの自動更新を有効にする
+                </label>
             </form>
         </x-slot:body>
         <x-slot:footer>

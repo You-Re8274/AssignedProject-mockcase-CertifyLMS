@@ -145,6 +145,9 @@ function describeError(err) {
     if (err.type === 'rate-limit') return '本日の利用上限に達しました。明日 0:00 以降に再度ご利用ください。';
     if (err.type === 'validation') return '入力内容を確認してください (1-2000 文字)。';
     if (err.type === 'llm') {
+        if (err.reason === 'missing_api_key') {
+            return 'AI 相談は現在利用できません。管理者にお問い合わせください。';
+        }
         const upstream = err.upstreamStatus;
         if (upstream === 429) {
             return 'Gemini API のリクエスト制限に達しました。1 分ほど待って再試行してください。';

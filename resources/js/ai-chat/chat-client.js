@@ -56,7 +56,13 @@ export class AiChatClient {
         }
         if (response.status === 502) {
             const payload = await response.json().catch(() => ({}));
-            this.onError({ type: 'llm', status: 502, upstreamStatus: payload?.upstream_status ?? null, payload });
+            this.onError({
+                type: 'llm',
+                status: 502,
+                reason: payload?.reason ?? null,
+                upstreamStatus: payload?.upstream_status ?? null,
+                payload,
+            });
             return;
         }
         if (!response.ok) {

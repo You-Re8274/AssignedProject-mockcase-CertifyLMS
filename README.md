@@ -172,3 +172,26 @@ sail artisan test --compact \
     tests/Feature/Http/Meeting/MeetingControllerTest.php \
     tests/Unit/Services/MeetingAvailabilityServiceTest.php
 ```
+
+- `GEMINI_API_KEY` — AI チャットボット機能（Gemini API）に使用します。
+    1. [Google AI Studio](https://aistudio.google.com/) にアクセスし、API キーを作成します。
+    2. 発行された API キーを `.env` の `GEMINI_API_KEY` に設定してください。
+    3. `AI_CHAT_ENABLED=true` にすると機能が有効になります（既定値は `false`）。必要に応じて `AI_CHAT_DAILY_LIMIT`、`AI_CHAT_HISTORY_MESSAGES`、`GEMINI_MODEL`、`GEMINI_TIMEOUT` を調整し、`sail artisan config:clear` を実行してください。
+
+> API キーが未設定または Gemini API が一時的に利用できない場合も受講生の質問は履歴に保存され、エラー状態の応答として記録されます。日次送信上限は失敗した送信も含めてカウントします。
+
+### Gemini AI チャットボットの手動確認
+
+Gemini API キーを設定した後に `sail artisan config:clear` を実行し、学習中の受講生アカウントでログインして次を確認します。
+
+1. 全画面共通のフローティングウィジェット（右下）から AI 相談を開き、メッセージを送信して正常に応答が返ってくること。
+2. 教材画面から AI 相談を開始した際、現在の教材コンテキストが自動で付与されていること。
+3. 過去の会話履歴がサイドバーや一覧から再開できること。
+4. 関連する自動テストがすべてグリーンでパスすること。
+
+```bash
+sail artisan test --compact \
+    tests/Feature/Http/AiChatControllerTest.php \
+    tests/Feature/Services/AiChatServiceTest.php \
+    tests/Feature/Services/GeminiServiceTest.php
+```
