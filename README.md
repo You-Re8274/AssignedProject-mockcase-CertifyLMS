@@ -195,3 +195,14 @@ sail artisan test --compact \
     tests/Feature/Services/AiChatServiceTest.php \
     tests/Feature/Services/GeminiServiceTest.php
 ```
+
+- `STRIPE_KEY` / `STRIPE_SECRET` / `STRIPE_WEBHOOK_SECRET` — Stripe 連携（追加面談購入機能）に使用します。
+    1. [Stripe ダッシュボード](https://dashboard.stripe.com/) のテストモードで API キー（公開鍵・秘密鍵）を取得します。
+    2. [Stripe CLI](https://stripe.com/docs/stripe-cli) をインストールし、ターミナルで `stripe login` を実行してサンドボックス認証を行います。
+    3. 以下のコマンドを実行してローカルへイベントを転送し、出力される署名シークレット（`whsec_...`）を取得します。
+        ```bash
+        stripe listen --forward-to localhost:8000/webhooks/stripe --events checkout.session.completed,payment_intent.succeeded
+        ```
+    4. 発行された公開鍵、秘密鍵、および Webhook 署名シークレットを `.env` の各項目に設定し、`sail artisan config:clear` を実行してください。
+
+> Webhook のローカル検証を行う際は、`stripe listen` を起動したまま別のターミナルで `stripe trigger checkout.session.completed` を実行することで、疑似的に決済完了イベントを送信して動作確認ができます。
