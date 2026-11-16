@@ -22,6 +22,7 @@ use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\LearningHourTargetController;
 use App\Http\Controllers\MeetingController;
 use App\Http\Controllers\MeetingPackController;
+use App\Http\Controllers\MeetingQuotaCheckoutController;
 use App\Http\Controllers\MeetingQuotaHistoryController;
 use App\Http\Controllers\MockExamAnswerController;
 use App\Http\Controllers\MockExamCatalogController;
@@ -48,6 +49,7 @@ use App\Http\Controllers\Settings\AvailabilityController as SettingsAvailability
 use App\Http\Controllers\Settings\GoogleCalendarController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\SettingsDefaultEnrollmentController;
+use App\Http\Controllers\StripeWebhookController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WeakDrillController;
 use App\Http\Controllers\WeakDrillResultController;
@@ -68,6 +70,9 @@ Route::get('/onboarding/{invitation}', [OnboardingController::class, 'show'])
 Route::post('/onboarding/{invitation}', [OnboardingController::class, 'store'])
     ->middleware('signed')
     ->name('onboarding.store');
+
+Route::post('/webhooks/stripe', [StripeWebhookController::class, 'handle'])
+    ->name('webhooks.stripe');
 
 // ============================================================
 // 認証後の全ロール共通ルート
@@ -598,6 +603,11 @@ Route::middleware(['auth', 'role:coach'])
 // 受講生専用ルート(受講中=in_progress のみ通過)
 // ============================================================
 Route::middleware(['auth', 'role:student', 'active-learning'])->prefix('meeting-quota')->name('meeting-quota.')->group(function () {
+    // 追加面談パック購入(Stripe Checkout)
+    Route::get('checkout', [MeetingQuotaCheckoutController::class, 'select'])->name('checkout.select');
+    Route::post('checkout', [MeetingQuotaCheckoutController::class, 'create'])->name('checkout.create');
+    Route::get('success', [MeetingQuotaCheckoutController::class, 'success'])->name('success');
+
     // 面談回数履歴
     Route::get('history', [MeetingQuotaHistoryController::class, 'index'])->name('history');
 });
