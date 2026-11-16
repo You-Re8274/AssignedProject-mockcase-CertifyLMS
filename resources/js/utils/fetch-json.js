@@ -7,13 +7,65 @@ function csrfToken() {
     return document.querySelector('meta[name="csrf-token"]')?.content ?? '';
 }
 
+let sanctumCsrfCookieRequest = null;
+
+async function ensureSanctumCsrfCookie() {
+    if (!sanctumCsrfCookieRequest) {
+        sanctumCsrfCookieRequest = fetch('/sanctum/csrf-cookie', {
+            method: 'GET',
+            headers: {
+                Accept: 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            credentials: 'include',
+        }).then((response) => {
+            if (!response.ok) {
+                throw new Error(`Sanctum CSRF cookie request failed (HTTP ${response.status})`);
+            }
+        }).catch((error) => {
+            sanctumCsrfCookieRequest = null;
+            throw error;
+        });
+    }
+
+    await sanctumCsrfCookieRequest;
+}
+
+function xsrfCookieToken() {
+    const cookie = document.cookie
+        .split('; ')
+        .find((item) => item.startsWith('XSRF-TOKEN='));
+
+    return cookie ? decodeURIComponent(cookie.slice('XSRF-TOKEN='.length)) : '';
+}
+
 async function send(method, url, data = null, options = {}) {
+    const {
+        sanctum = false,
+        headers: optionHeaders = {},
+        credentials,
+        ...fetchOptions
+    } = options;
+    const isUnsafeMethod = !['GET', 'HEAD', 'OPTIONS'].includes(method.toUpperCase());
+
+    if (sanctum && isUnsafeMethod) {
+        await ensureSanctumCsrfCookie();
+    }
+
     const headers = {
         Accept: 'application/json',
-        'X-CSRF-TOKEN': csrfToken(),
         'X-Requested-With': 'XMLHttpRequest',
-        ...(options.headers ?? {}),
+        ...(sanctum ? {} : { 'X-CSRF-TOKEN': csrfToken() }),
+        ...optionHeaders,
     };
+
+    if (sanctum && isUnsafeMethod) {
+        const token = xsrfCookieToken();
+        if (!token) {
+            throw new Error('Sanctum XSRF-TOKEN cookie is missing');
+        }
+        headers['X-XSRF-TOKEN'] = token;
+    }
 
     let body;
     if (data instanceof FormData) {
@@ -24,11 +76,11 @@ async function send(method, url, data = null, options = {}) {
     }
 
     const response = await fetch(url, {
+        ...fetchOptions,
         method,
         headers,
         body,
-        credentials: 'same-origin',
-        ...options,
+        credentials: credentials ?? (sanctum ? 'include' : 'same-origin'),
     });
 
     const contentType = response.headers.get('content-type') ?? '';
