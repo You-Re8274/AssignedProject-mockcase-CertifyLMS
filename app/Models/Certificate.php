@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * 受講生の修了証を表す Model。受講生が修了達成後に自己発火で発行される。
@@ -57,6 +58,39 @@ class Certificate extends Model
     public function certification(): BelongsTo
     {
         return $this->belongsTo(Certification::class);
+    }
+
+    /**
+     * 修了証ファイルが保管領域内の許可された相対パスにある場合のみ返す。
+     */
+    public function pdfStoragePath(): ?string
+    {
+        $path = $this->pdf_path;
+        if (! is_string($path) || ! str_starts_with($path, 'certificates/')) {
+            return null;
+        }
+
+        $filename = substr($path, strlen('certificates/'));
+        if (
+            $filename === ''
+            || $filename !== basename($filename)
+            || str_contains($filename, '\\')
+            || strtolower(pathinfo($filename, PATHINFO_EXTENSION)) !== 'pdf'
+        ) {
+            return null;
+        }
+
+        return $path;
+    }
+
+    /**
+     * 修了証ファイルが公開領域ではなく private disk に存在するかを返す。
+     */
+    public function hasPdfFile(): bool
+    {
+        $path = $this->pdfStoragePath();
+
+        return $path !== null && Storage::disk('private')->exists($path);
     }
 
     public function scopeIssuedThisMonth(Builder $query): Builder

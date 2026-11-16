@@ -38,8 +38,8 @@ Certify LMS は **マルチ資格対応の資格学習プラットフォーム**
 | MockExamSession | 受講生の模試受験 1 回分。開始 → 解答 → 提出 → 採点という状態を持つ |
 | Meeting（面談） | 受講生とコーチの面談予約。面談回数の増減は MeetingQuotaTransaction（追記専用の取引履歴）で管理する |
 | Payment（追加面談購入） | MeetingPack の購入記録。購入時のパック名・回数・金額をスナップショットとして保持し、Stripe Checkout Session と面談回数台帳に紐づく |
+| Certificate（修了証） | 資格修了時に受講生が受け取る証明。`certificates.pdf_path` は private disk 内の相対パスで、1 受講登録につき 1 件に制約する |
 | Plan（プラン） | 受講期間 + 面談回数のセット。ユーザーに割り当てられ、履歴は UserPlanLog に残る |
-| Certificate（修了証） | 資格修了時に受講生が受け取る証明 |
 
 ---
 
