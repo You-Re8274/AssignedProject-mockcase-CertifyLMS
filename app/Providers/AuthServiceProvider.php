@@ -6,6 +6,7 @@ namespace App\Providers;
 
 use App\Models\AiChatConversation;
 use App\Models\Announcement;
+use App\Models\Certificate;
 use App\Models\Certification;
 use App\Models\CertificationCategory;
 use App\Models\Chapter;
@@ -36,6 +37,7 @@ use App\Models\SectionQuestionAttempt;
 use App\Models\User;
 use App\Policies\AiChatConversationPolicy;
 use App\Policies\AnnouncementPolicy;
+use App\Policies\CertificatePolicy;
 use App\Policies\CertificationCategoryPolicy;
 use App\Policies\CertificationPolicy;
 use App\Policies\ChapterPolicy;
@@ -91,6 +93,7 @@ class AuthServiceProvider extends ServiceProvider
         Part::class => PartPolicy::class,
         Chapter::class => ChapterPolicy::class,
         ChatRoom::class => ChatRoomPolicy::class,
+        Certificate::class => CertificatePolicy::class,
         Announcement::class => AnnouncementPolicy::class,
         QaThread::class => QaThreadPolicy::class,
         QaReply::class => QaReplyPolicy::class,
