@@ -37,6 +37,7 @@ class DashboardControllerTest extends TestCase
 
         $response->assertOk();
         $response->assertViewIs('dashboard.admin');
+        $response->assertDontSee('data-notification-popover-root', false);
     }
 
     public function test_coach_user_sees_coach_dashboard_blade(): void
@@ -47,6 +48,7 @@ class DashboardControllerTest extends TestCase
 
         $response->assertOk();
         $response->assertViewIs('dashboard.coach');
+        $response->assertSee('data-notification-popover-root', false);
     }
 
     public function test_student_user_sees_student_dashboard_blade(): void
@@ -57,6 +59,7 @@ class DashboardControllerTest extends TestCase
 
         $response->assertOk();
         $response->assertViewIs('dashboard.student');
+        $response->assertSee('data-notification-popover-root', false);
     }
 
     public function test_graduated_student_sees_graduated_dashboard_blade(): void

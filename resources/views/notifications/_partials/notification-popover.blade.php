@@ -52,6 +52,12 @@
         <div data-notification-popover-empty class="hidden p-6 text-center text-xs text-ink-500">
             通知はありません。
         </div>
+        <div
+            data-notification-popover-error
+            role="alert"
+            aria-live="assertive"
+            class="hidden p-4 text-center text-xs text-danger-700"
+        ></div>
         <ul data-notification-popover-items class="divide-y divide-subtle"></ul>
     </div>
 
@@ -72,7 +78,7 @@
             <a
                 href="#"
                 data-notification-popover-row
-                class="flex items-start gap-3 px-4 py-3 hover:bg-ink-50 transition-colors aria-[data-unread=true]:bg-primary-50/30"
+                class="flex items-start gap-3 px-4 py-3 hover:bg-ink-50 transition-colors data-[unread=true]:bg-primary-50/30"
             >
                 <span data-notification-popover-row-dot class="mt-2 inline-block w-2 h-2 rounded-full bg-primary-600 shrink-0"></span>
                 <div class="min-w-0 flex-1">
