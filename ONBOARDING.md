@@ -37,6 +37,7 @@ Certify LMS は **マルチ資格対応の資格学習プラットフォーム**
 | MockExam（模試） | 本番形式の模擬試験。問題（MockExamQuestion）は演習問題とは**別管理**（共有しない） |
 | MockExamSession | 受講生の模試受験 1 回分。開始 → 解答 → 提出 → 採点という状態を持つ |
 | Meeting（面談） | 受講生とコーチの面談予約。面談回数の増減は MeetingQuotaTransaction（追記専用の取引履歴）で管理する |
+| Payment（追加面談購入） | MeetingPack の購入記録。購入時のパック名・回数・金額をスナップショットとして保持し、Stripe Checkout Session と面談回数台帳に紐づく |
 | Plan（プラン） | 受講期間 + 面談回数のセット。ユーザーに割り当てられ、履歴は UserPlanLog に残る |
 | Certificate（修了証） | 資格修了時に受講生が受け取る証明 |
 
@@ -93,6 +94,7 @@ routes/web.php            … 入口。URL・ミドルウェア・Controller の
 - AI相談 `/ai-chat/*` は `auth` / `role:student` / `active-learning` / `ai-chat-enabled` をすべて要求する。`ai-chat-enabled` は `AI_CHAT_ENABLED` が OFF の場合に 404 を返し、`AiChatConversationPolicy` は所有者本人の会話操作だけを許可する。Section コンテキストは公開教材かつ受講中資格のものに限定
 - `Route::middleware(['auth', 'role:admin'])->prefix('admin')` — 管理者専用
 - 面談パック管理は `MeetingPackController` / `MeetingPackPolicy` / `Http/Requests/MeetingPack` を使い、`/admin/meeting-packs` 配下を管理者専用で提供する
+- 追加面談購入の `Payment` は購入時点のパック名・回数・円建て金額を保持する。Stripe Checkout Session ID と Payment Intent ID は一意で、`meeting_quota_transactions.related_payment_id` も一意にすることで、同じ購入から回数付与される取引を1件に制限する
 - プラン管理は `PlanController` / `PlanPolicy` / `Http/Requests/Plan` / `UseCases/Plan` を使い、`/admin/plans` 配下を管理者専用で提供する。一覧は `users_count` を集計し、下書き → 公開中 → アーカイブ → 下書きの状態遷移と、受講者・プラン履歴がない下書きのみ削除できる制約を Action で管理する
 - 通知は Laravel 標準の `notifications` テーブルと `User` の `Notifiable` を使う。`NotificationPolicy` は受講生・コーチの本人通知のみ閲覧・既読化を許可し、初期通知データは `NotificationSeeder` が固定アカウントへ投入する
 - 通知一覧・既読操作は `NotificationController` の `notifications.index` / `notifications.markAsRead` / `notifications.markAllAsRead` で提供し、一覧は本人の通知をページネーションする。既読時の `action_url` は同一ホストの内部パスのみ許可する
