@@ -9,6 +9,8 @@ use App\Exceptions\Certification\CertificateAlreadyIssuedException;
 use App\Exceptions\Certification\EnrollmentNotPassedException;
 use App\Models\Certificate;
 use App\Models\Enrollment;
+use App\Services\CertificatePdfService;
+use DateTimeInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -19,21 +21,25 @@ use Illuminate\Support\Str;
  * - Enrollment が `status=passed` + `passed_at != null` でない: EnrollmentNotPassedException（409）
  * - 同一 Enrollment に対する二重呼出: CertificateAlreadyIssuedException（409、事前 lockForUpdate + exists で検出）
  *
- * 修了証レコードの INSERT は `DB::transaction()` 内で実行する。
+ * 修了証レコード作成とPDF生成・保存は `DB::transaction()` 内で実行する。
  */
 final class IssueAction
 {
+    public function __construct(
+        private readonly CertificatePdfService $certificatePdf,
+    ) {}
+
     /**
      * @throws EnrollmentNotPassedException 受講登録が修了状態ではない
      * @throws CertificateAlreadyIssuedException 同一 Enrollment で修了証が既発行
      */
-    public function __invoke(Enrollment $enrollment): Certificate
+    public function __invoke(Enrollment $enrollment, ?DateTimeInterface $issuedAt = null): Certificate
     {
         if ($enrollment->status !== EnrollmentStatus::Passed || $enrollment->passed_at === null) {
             throw new EnrollmentNotPassedException;
         }
 
-        return DB::transaction(function () use ($enrollment) {
+        return DB::transaction(function () use ($enrollment, $issuedAt) {
             // 二重発行ガード: lockForUpdate で同時呼出を直列化し、enrollment_id UNIQUE 違反を例外メッセージ判別ではなく事前 SELECT で確定検出する
             $existing = Certificate::query()
                 ->where('enrollment_id', $enrollment->id)
@@ -44,13 +50,17 @@ final class IssueAction
                 throw new CertificateAlreadyIssuedException;
             }
 
-            return Certificate::create([
+            $certificate = Certificate::query()->create([
                 'user_id' => $enrollment->user_id,
                 'enrollment_id' => $enrollment->id,
                 'certification_id' => $enrollment->certification_id,
                 'pdf_path' => 'certificates/'.Str::ulid().'.pdf',
-                'issued_at' => now(),
+                'issued_at' => $issuedAt ?? now(),
             ]);
+
+            $this->certificatePdf->store($certificate);
+
+            return $certificate;
         });
     }
 }

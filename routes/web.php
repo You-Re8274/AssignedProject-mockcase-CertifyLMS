@@ -6,6 +6,7 @@ use App\Http\Controllers\AiChatController;
 use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\Auth\OnboardingController;
 use App\Http\Controllers\BrowseController;
+use App\Http\Controllers\CertificateDownloadController;
 use App\Http\Controllers\CertificationCatalogController;
 use App\Http\Controllers\CertificationCategoryController;
 use App\Http\Controllers\CertificationCoachAssignmentController;
@@ -80,6 +81,8 @@ Route::post('/webhooks/stripe', [StripeWebhookController::class, 'handle'])
 Route::middleware('auth')->group(function () {
     // ダッシュボード
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard.index');
+    Route::get('certificates/{certificate}/download', CertificateDownloadController::class)
+        ->name('certificates.download');
     Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('notifications/read-all', [NotificationController::class, 'markAllAsRead'])
         ->name('notifications.markAllAsRead');

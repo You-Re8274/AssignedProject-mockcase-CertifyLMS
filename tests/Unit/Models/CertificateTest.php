@@ -10,6 +10,7 @@ use App\Models\Enrollment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 /**
@@ -84,5 +85,31 @@ class CertificateTest extends TestCase
 
         // Assert
         $this->assertInstanceOf(Carbon::class, $fresh->issued_at);
+    }
+
+    public function test_pdf_file_is_checked_only_in_private_storage(): void
+    {
+        Storage::fake('private');
+        Storage::fake('public');
+
+        $certificate = Certificate::factory()->create();
+        $path = $certificate->pdfStoragePath();
+        $this->assertNotNull($path);
+
+        Storage::disk('public')->put($path, 'not a private certificate');
+        $this->assertFalse($certificate->hasPdfFile());
+
+        Storage::disk('private')->put($path, 'private certificate');
+        $this->assertTrue($certificate->hasPdfFile());
+    }
+
+    public function test_pdf_storage_path_rejects_paths_outside_certificate_directory(): void
+    {
+        $certificate = Certificate::factory()->create([
+            'pdf_path' => 'certificates/../private.pdf',
+        ]);
+
+        $this->assertNull($certificate->pdfStoragePath());
+        $this->assertFalse($certificate->hasPdfFile());
     }
 }

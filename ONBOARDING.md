@@ -38,8 +38,8 @@ Certify LMS は **マルチ資格対応の資格学習プラットフォーム**
 | MockExamSession | 受講生の模試受験 1 回分。開始 → 解答 → 提出 → 採点という状態を持つ |
 | Meeting（面談） | 受講生とコーチの面談予約。面談回数の増減は MeetingQuotaTransaction（追記専用の取引履歴）で管理する |
 | Payment（追加面談購入） | MeetingPack の購入記録。購入時のパック名・回数・金額をスナップショットとして保持し、Stripe Checkout Session と面談回数台帳に紐づく |
+| Certificate（修了証） | 資格修了時に受講生が受け取る証明。`certificates.pdf_path` は private disk 内の相対パスで、1 受講登録につき 1 件に制約する |
 | Plan（プラン） | 受講期間 + 面談回数のセット。ユーザーに割り当てられ、履歴は UserPlanLog に残る |
-| Certificate（修了証） | 資格修了時に受講生が受け取る証明 |
 
 ---
 
@@ -172,6 +172,8 @@ erDiagram
 | マスタの CRUD 一式 | 出題分野マスタ: `QuestionCategoryController` + `app/UseCases/QuestionCategory/`（Index / Store / Update / Destroy）+ `app/Http/Requests/QuestionCategory/` + `QuestionCategoryPolicy` |
 | 階層リソースの CRUD・公開状態遷移・並び替え | 教材階層: `app/UseCases/Part/`（Store / Update / Destroy / Publish / Unpublish / Reorder）と、Chapter / Section の同型実装 |
 | 状態遷移を伴う業務操作 | 修了証の受領: `app/UseCases/Enrollment/ReceiveCertificateAction.php` / 模試の開始・提出: `app/UseCases/MockExamSession/StartAction.php`・`SubmitAction.php` |
+| 修了証PDFの生成・保存 | `app/Services/CertificatePdfService.php` が `resources/views/certificates/pdf.blade.php` をmPDFで描画し、private diskへ保存する。生成・保存は修了証発行のDBトランザクション内で行い、失敗時は発行と受講状態の更新をロールバックする |
+| 修了証PDFのダウンロード | `CertificateDownloadController` / `CertificatePolicy` が本人・担当コーチ・管理者を認可し、private diskから添付配信する。`active-learning` は付けず、卒業済みの本人も利用可能 |
 | 模試の採点 | `app/UseCases/MockExamSession/GradeAction.php` が正解数 / 問題数を百分率（0〜100）で保存し、合格基準点と比較する。`tests/Feature/UseCases/MockExamSession/GradeActionTest.php` で採点率を検証する |
 | 複数 Entity にまたがる集計・判定 | 学習ストリーク: `app/Services/StreakService.php` / 面談の空き枠計算: `app/Services/MeetingAvailabilityService.php` |
 | 認可（誰が何をできるか） | `app/Policies/MockExamPolicy.php`（ロール × 操作の判定）。FormRequest の `authorize()` や Controller から Policy へ委譲する形が基本 |
@@ -194,9 +196,11 @@ erDiagram
 - **ライフサイクル網羅のデモユーザー**: 招待中 / 受講中 / 卒業 / 退会の各状態（`UserLifecycleSeeder`）
 - **資格マスタ**: 基本情報技術者試験・応用情報技術者試験ほか。公開中 / 下書き / アーカイブの状態を網羅
 - **教材階層と演習問題**: 公開 / 下書きが混在し、全文検索でヒットする Markdown 本文入り（`ContentSeeder`）
-- **模試・受験履歴、面談・対応可能時間帯、チャットルーム・メッセージ、質問掲示板のスレッド・回答、修了証** など各機能のデモデータ
+- **模試・受験履歴、面談・対応可能時間帯、チャットルーム・メッセージ、質問掲示板のスレッド・回答、修了証PDF** など各機能のデモデータ
 
 `DatabaseSeeder` の call 順がそのまま依存順になっています（ユーザー → プラン → 資格 → 受講登録・個人目標 → 教材 → 学習・模試・面談・チャット・質問掲示板・AI 相談）。固定受講生とデモ受講登録には達成済・未達成の個人目標を投入します（`EnrollmentGoalSeeder`）。`AiChatSeeder` は固定受講生に教材コンテキストあり / なしの会話と API エラー状態の応答を投入します。**新しいテーブルを追加するタスクでは、この Seeder 群に倣って動作確認用データを足す**と、画面確認とデモがやりやすくなります。
+
+`EnrollmentSeeder` と `CertificateSeeder` が作成する修了証は `IssueAction` を通じてPDF実体もprivate diskへ保存します。関連するSeeder・発行・ダウンロードのテストは `./vendor/bin/sail exec laravel.test php artisan test --compact tests/Feature/Database/CertificateSeederTest.php tests/Feature/UseCases/Enrollment/ReceiveCertificateActionTest.php tests/Feature/Http/Certificate/CertificateDownloadControllerTest.php tests/Unit/Models/CertificateTest.php` で実行できます。
 
 ---
 
