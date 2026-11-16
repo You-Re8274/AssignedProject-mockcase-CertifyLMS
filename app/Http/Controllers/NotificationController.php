@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Services\NotificationActionUrlResolver;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Notifications\DatabaseNotification;
@@ -32,8 +33,11 @@ class NotificationController extends Controller
         ]);
     }
 
-    public function markAsRead(Request $request, string $notification): RedirectResponse
-    {
+    public function markAsRead(
+        Request $request,
+        string $notification,
+        NotificationActionUrlResolver $actionUrlResolver,
+    ): RedirectResponse {
         $record = $request->user()->notifications()->findOrFail($notification);
         $this->authorize('markAsRead', $record);
 
@@ -45,7 +49,7 @@ class NotificationController extends Controller
             return redirect()->route('notifications.show', $record);
         }
 
-        return redirect()->to($this->safeActionUrl($request, $record));
+        return redirect()->to($actionUrlResolver->resolve($request, $record));
     }
 
     public function show(Request $request, string $notification): View
@@ -73,41 +77,5 @@ class NotificationController extends Controller
         return redirect()
             ->route('notifications.index')
             ->with('success', 'すべての通知を既読にしました。');
-    }
-
-    private function safeActionUrl(Request $request, DatabaseNotification $notification): string
-    {
-        $actionUrl = $notification->data['action_url'] ?? null;
-        if (! is_string($actionUrl) || $actionUrl === '') {
-            return route('notifications.index');
-        }
-
-        $parts = parse_url($actionUrl);
-        if ($parts === false || isset($parts['user']) || isset($parts['pass'])) {
-            return route('notifications.index');
-        }
-
-        if (isset($parts['host'])) {
-            if (strcasecmp($parts['host'], $request->getHost()) !== 0) {
-                return route('notifications.index');
-            }
-        } elseif (isset($parts['scheme'])) {
-            return route('notifications.index');
-        }
-
-        $path = $parts['path'] ?? '';
-        if ($path === '' || ! str_starts_with($path, '/') || str_starts_with($path, '//') || str_contains($path, '\\')) {
-            return route('notifications.index');
-        }
-
-        $url = $request->getSchemeAndHttpHost().$path;
-        if (isset($parts['query'])) {
-            $url .= '?'.$parts['query'];
-        }
-        if (isset($parts['fragment'])) {
-            $url .= '#'.$parts['fragment'];
-        }
-
-        return $url;
     }
 }
