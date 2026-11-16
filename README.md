@@ -201,9 +201,11 @@ sail artisan test --compact \
     2. [Stripe CLI](https://stripe.com/docs/stripe-cli) をインストールし、ターミナルで `stripe login` を実行してサンドボックス認証を行います。
     3. 以下のコマンドを実行してローカルへイベントを転送し、出力される署名シークレット（`whsec_...`）を取得します。
         ```bash
-        stripe listen --forward-to localhost:8000/webhooks/stripe --events checkout.session.completed,payment_intent.succeeded
+        stripe listen --forward-to localhost:8000/webhooks/stripe --events checkout.session.completed,checkout.session.async_payment_succeeded,checkout.session.async_payment_failed,checkout.session.expired
         ```
     4. 発行された公開鍵、秘密鍵、および Webhook 署名シークレットを `.env` の各項目に設定し、`sail artisan config:clear` を実行してください。
     5. 追加面談購入を試す場合は `STRIPE_SECRET` にテストモードの秘密鍵を設定し、公開中の面談パックを受講中の受講生で選択してください。Checkout 画面では Stripe のテストカードを使用します。完了画面はCheckout Session IDで本人の購入記録を確認して表示し、残数の加算はWebhook受信後に行います。
 
-> Webhook のローカル検証を行う際は、`stripe listen` を起動したまま別のターミナルで `stripe trigger checkout.session.completed` を実行することで、疑似的に決済完了イベントを送信して動作確認ができます。
+> 実購入の通し確認は、`stripe listen` で転送を起動した状態でアプリから Checkout Session を作成し、Stripe のテストカードで決済してください。CLI の `stripe trigger checkout.session.completed` はアプリ内の購入記録と紐づかないため、Webhook 到達確認に使い、面談回数は加算されません。
+
+Webhook のFeatureテストは `./vendor/bin/sail exec laravel.test php artisan test --compact tests/Feature/Http/MeetingQuota/StripeWebhookControllerTest.php tests/Feature/Http/MeetingQuota/MeetingQuotaCheckoutControllerTest.php` で実行します。
