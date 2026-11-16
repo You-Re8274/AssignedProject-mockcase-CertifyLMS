@@ -58,6 +58,7 @@
                 <x-icon name="bell" class="w-[18px] h-[18px]" />
                 <span
                     data-notification-popover-badge
+                    data-unread-count="{{ $notificationBadge }}"
                     @class([
                         'absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 inline-flex items-center justify-center rounded-full bg-primary-600 text-white text-[10px] font-bold font-display tnum border-2 border-surface-canvas',
                         'hidden' => $notificationBadge <= 0,
