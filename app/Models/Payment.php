@@ -38,6 +38,11 @@ class Payment extends Model
         'paid_at' => 'datetime',
     ];
 
+    public function getQuantityAttribute(): int
+    {
+        return $this->meeting_count;
+    }
+
     /**
      * @return BelongsTo<User, $this>
      */

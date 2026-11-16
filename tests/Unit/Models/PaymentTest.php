@@ -21,7 +21,9 @@ class PaymentTest extends TestCase
     public function test_payment_relations_and_purchase_snapshot_are_persisted(): void
     {
         $student = User::factory()->student()->create();
-        $pack = MeetingPack::factory()->published()->withCount(3)->withPrice(9000)->create();
+        $pack = MeetingPack::factory()->published()->withCount(3)->withPrice(9000)->create([
+            'name' => '3 回パック',
+        ]);
         $payment = Payment::factory()
             ->for($student)
             ->for($pack)
@@ -48,6 +50,8 @@ class PaymentTest extends TestCase
         $this->assertTrue($payment->meetingPack->is($pack));
         $this->assertTrue($payment->quotaTransactions->sole()->is($quotaTransaction));
         $this->assertSame(PaymentStatus::Paid, $payment->status);
+        $this->assertSame('決済完了', $payment->status->label());
+        $this->assertSame(3, $payment->quantity);
         $this->assertSame(3, $payment->meeting_count);
         $this->assertSame(9000, $payment->amount);
         $this->assertSame('JPY', $payment->currency);
