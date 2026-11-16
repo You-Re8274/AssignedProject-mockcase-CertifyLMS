@@ -97,10 +97,16 @@ class NotificationApiControllerTest extends TestCase
 
     public function test_admin_is_not_allowed_to_use_notification_api(): void
     {
-        $this->actingAs(User::factory()->admin()->create());
+        $admin = User::factory()->admin()->create();
+        $notification = $this->createNotification($admin, unread: true);
+        $this->actingAs($admin);
 
         $this->getJson(route('api.v1.notifications.index'))->assertForbidden();
         $this->postJson(route('api.v1.notifications.read-all'))->assertForbidden();
+        $this->postJson(route('api.v1.notifications.read', $notification->id))
+            ->assertForbidden();
+
+        $this->assertNull($notification->fresh()->read_at);
     }
 
     public function test_external_action_url_is_replaced_with_notification_page_url(): void
