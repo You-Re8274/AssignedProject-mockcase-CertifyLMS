@@ -38,7 +38,7 @@ final class StripeCheckoutService
                     'user_id' => $payment->user_id,
                 ],
             ],
-            'success_url' => url('/meeting-quota/success').'?session_id={CHECKOUT_SESSION_ID}',
+            'success_url' => route('meeting-quota.success').'?session_id={CHECKOUT_SESSION_ID}',
             'cancel_url' => route('meeting-quota.checkout.select', ['checkout' => 'canceled']),
         ], [
             'idempotency_key' => 'meeting-quota-checkout-'.$payment->id,

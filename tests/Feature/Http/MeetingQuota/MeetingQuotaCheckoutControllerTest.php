@@ -149,4 +149,52 @@ class MeetingQuotaCheckoutControllerTest extends TestCase
             ->get(route('meeting-quota.checkout.select'))
             ->assertForbidden();
     }
+
+    public function test_success_page_displays_only_the_current_students_payment(): void
+    {
+        $student = User::factory()->student()->inProgress()->create();
+        $payment = Payment::factory()
+            ->for($student)
+            ->paid()
+            ->create(['stripe_checkout_session_id' => 'cs_test_success']);
+
+        $this->actingAs($student)
+            ->get(route('meeting-quota.success', ['session_id' => 'cs_test_success']))
+            ->assertOk()
+            ->assertViewIs('meeting-quota.success')
+            ->assertViewHas('payment', fn (Payment $viewPayment) => $viewPayment->is($payment))
+            ->assertSee($payment->meeting_count.' 回')
+            ->assertSee('¥'.number_format($payment->amount))
+            ->assertSee($payment->status->label());
+
+        $this->assertDatabaseCount('meeting_quota_transactions', 0);
+    }
+
+    public function test_success_page_does_not_expose_another_students_payment(): void
+    {
+        $owner = User::factory()->student()->inProgress()->create();
+        $payment = Payment::factory()
+            ->for($owner)
+            ->paid()
+            ->create(['stripe_checkout_session_id' => 'cs_test_private']);
+        $otherStudent = User::factory()->student()->inProgress()->create();
+
+        $this->actingAs($otherStudent)
+            ->get(route('meeting-quota.success', ['session_id' => $payment->stripe_checkout_session_id]))
+            ->assertNotFound();
+    }
+
+    public function test_checkout_cancellation_returns_to_selection_without_changing_quota(): void
+    {
+        $student = User::factory()->student()->inProgress()->create();
+        $payment = Payment::factory()->for($student)->create();
+
+        $this->actingAs($student)
+            ->get(route('meeting-quota.checkout.select', ['checkout' => 'canceled']))
+            ->assertRedirect(route('meeting-quota.checkout.select'))
+            ->assertSessionHas('info', '決済はキャンセルされました。面談回数は変更されていません。');
+
+        $this->assertSame(PaymentStatus::Pending, $payment->fresh()->status);
+        $this->assertDatabaseCount('meeting_quota_transactions', 0);
+    }
 }

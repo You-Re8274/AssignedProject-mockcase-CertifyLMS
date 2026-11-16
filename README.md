@@ -204,6 +204,6 @@ sail artisan test --compact \
         stripe listen --forward-to localhost:8000/webhooks/stripe --events checkout.session.completed,payment_intent.succeeded
         ```
     4. 発行された公開鍵、秘密鍵、および Webhook 署名シークレットを `.env` の各項目に設定し、`sail artisan config:clear` を実行してください。
-    5. 追加面談購入を試す場合は `STRIPE_SECRET` にテストモードの秘密鍵を設定し、公開中の面談パックを受講中の受講生で選択してください。Checkout 画面では Stripe のテストカードを使用します。決済完了後の残数反映は Webhook 受信設定が必要です。
+    5. 追加面談購入を試す場合は `STRIPE_SECRET` にテストモードの秘密鍵を設定し、公開中の面談パックを受講中の受講生で選択してください。Checkout 画面では Stripe のテストカードを使用します。完了画面はCheckout Session IDで本人の購入記録を確認して表示し、残数の加算はWebhook受信後に行います。
 
 > Webhook のローカル検証を行う際は、`stripe listen` を起動したまま別のターミナルで `stripe trigger checkout.session.completed` を実行することで、疑似的に決済完了イベントを送信して動作確認ができます。

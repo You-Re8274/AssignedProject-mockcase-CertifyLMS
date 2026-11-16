@@ -95,6 +95,7 @@ routes/web.php            … 入口。URL・ミドルウェア・Controller の
 - `Route::middleware(['auth', 'role:admin'])->prefix('admin')` — 管理者専用
 - 面談パック管理は `MeetingPackController` / `MeetingPackPolicy` / `Http/Requests/MeetingPack` を使い、`/admin/meeting-packs` 配下を管理者専用で提供する
 - 追加面談購入の `Payment` は購入時点のパック名・回数・円建て金額を保持する。Stripe Checkout Session ID と Payment Intent ID は一意で、`meeting_quota_transactions.related_payment_id` も一意にすることで、同じ購入から回数付与される取引を1件に制限する
+- 追加面談購入の Checkout 選択・セッション作成・完了画面は `MeetingQuotaCheckoutController` / `CreateCheckoutSessionAction` / `StripeCheckoutService` が担い、完了画面はCheckout Session IDとログイン中本人の購入記録を照合する。ブラウザーの戻りだけでは面談回数を加算せず、回数付与は署名検証済みWebhookで行う
 - プラン管理は `PlanController` / `PlanPolicy` / `Http/Requests/Plan` / `UseCases/Plan` を使い、`/admin/plans` 配下を管理者専用で提供する。一覧は `users_count` を集計し、下書き → 公開中 → アーカイブ → 下書きの状態遷移と、受講者・プラン履歴がない下書きのみ削除できる制約を Action で管理する
 - 通知は Laravel 標準の `notifications` テーブルと `User` の `Notifiable` を使う。`NotificationPolicy` は受講生・コーチの本人通知のみ閲覧・既読化を許可し、初期通知データは `NotificationSeeder` が固定アカウントへ投入する
 - 通知一覧・既読操作は `NotificationController` の `notifications.index` / `notifications.markAsRead` / `notifications.markAllAsRead` で提供し、一覧は本人の通知をページネーションする。既読時の `action_url` は同一ホストの内部パスのみ許可する

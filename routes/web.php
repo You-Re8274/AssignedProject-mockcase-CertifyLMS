@@ -602,6 +602,7 @@ Route::middleware(['auth', 'role:student', 'active-learning'])->prefix('meeting-
     // 追加面談パック購入(Stripe Checkout)
     Route::get('checkout', [MeetingQuotaCheckoutController::class, 'select'])->name('checkout.select');
     Route::post('checkout', [MeetingQuotaCheckoutController::class, 'create'])->name('checkout.create');
+    Route::get('success', [MeetingQuotaCheckoutController::class, 'success'])->name('success');
 
     // 面談回数履歴
     Route::get('history', [MeetingQuotaHistoryController::class, 'index'])->name('history');
