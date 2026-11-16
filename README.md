@@ -208,4 +208,22 @@ sail artisan test --compact \
 
 > 実購入の通し確認は、`stripe listen` で転送を起動した状態でアプリから Checkout Session を作成し、Stripe のテストカードで決済してください。CLI の `stripe trigger checkout.session.completed` はアプリ内の購入記録と紐づかないため、Webhook 到達確認に使い、面談回数は加算されません。
 
-Webhook のFeatureテストは `./vendor/bin/sail exec laravel.test php artisan test --compact tests/Feature/Http/MeetingQuota/StripeWebhookControllerTest.php tests/Feature/Http/MeetingQuota/MeetingQuotaCheckoutControllerTest.php` で実行します。
+#### Stripe CLI による結合確認
+
+1. Sail を起動し、テストモードの `STRIPE_SECRET` と、`stripe listen` が表示する `STRIPE_WEBHOOK_SECRET` を `.env` に設定して `sail artisan config:clear` を実行します。Webhook シークレットを更新した場合は、CLI の転送を再起動して新しい値を設定してください。
+2. 次のコマンドを実行したままにします。
+   ```bash
+   stripe listen --forward-to localhost:8000/webhooks/stripe --events checkout.session.completed,checkout.session.async_payment_succeeded,checkout.session.async_payment_failed,checkout.session.expired
+   ```
+3. 学習中の受講生でログインし、追加面談購入画面から公開中パックを選択します。Stripe Checkout ではテストカード `4242 4242 4242 4242` と将来の有効期限、任意の CVC を入力します。
+4. 完了画面へ戻ることを確認し、Webhook 到着後に面談残数がパック回数分だけ増えることを確認します。購入をキャンセルした場合は残数が変わらないことも確認します。
+5. Stripe CLI の出力でWebhook応答が `200` であることを確認します。実決済イベントの再送はCLIの `stripe events resend <EVENT_ID>` で検証できます。同じ購入の再送で回数が増えないことを確認してください。
+
+Stripe Checkout / Webhook の関連 Feature テスト（Stripe API通信はモック、署名はテスト内で生成）は次で実行します。
+
+```bash
+./vendor/bin/sail exec laravel.test php artisan test --compact \
+    tests/Feature/Http/MeetingQuota/MeetingQuotaCheckoutControllerTest.php \
+    tests/Feature/Http/MeetingQuota/StripeWebhookControllerTest.php \
+    tests/Feature/Http/MeetingQuota/MeetingQuotaPurchaseFlowTest.php
+```
