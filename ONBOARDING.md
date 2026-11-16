@@ -196,9 +196,11 @@ erDiagram
 - **ライフサイクル網羅のデモユーザー**: 招待中 / 受講中 / 卒業 / 退会の各状態（`UserLifecycleSeeder`）
 - **資格マスタ**: 基本情報技術者試験・応用情報技術者試験ほか。公開中 / 下書き / アーカイブの状態を網羅
 - **教材階層と演習問題**: 公開 / 下書きが混在し、全文検索でヒットする Markdown 本文入り（`ContentSeeder`）
-- **模試・受験履歴、面談・対応可能時間帯、チャットルーム・メッセージ、質問掲示板のスレッド・回答、修了証** など各機能のデモデータ
+- **模試・受験履歴、面談・対応可能時間帯、チャットルーム・メッセージ、質問掲示板のスレッド・回答、修了証PDF** など各機能のデモデータ
 
 `DatabaseSeeder` の call 順がそのまま依存順になっています（ユーザー → プラン → 資格 → 受講登録・個人目標 → 教材 → 学習・模試・面談・チャット・質問掲示板・AI 相談）。固定受講生とデモ受講登録には達成済・未達成の個人目標を投入します（`EnrollmentGoalSeeder`）。`AiChatSeeder` は固定受講生に教材コンテキストあり / なしの会話と API エラー状態の応答を投入します。**新しいテーブルを追加するタスクでは、この Seeder 群に倣って動作確認用データを足す**と、画面確認とデモがやりやすくなります。
+
+`EnrollmentSeeder` と `CertificateSeeder` が作成する修了証は `IssueAction` を通じてPDF実体もprivate diskへ保存します。関連するSeeder・発行・ダウンロードのテストは `./vendor/bin/sail exec laravel.test php artisan test --compact tests/Feature/Database/CertificateSeederTest.php tests/Feature/UseCases/Enrollment/ReceiveCertificateActionTest.php tests/Feature/Http/Certificate/CertificateDownloadControllerTest.php tests/Unit/Models/CertificateTest.php` で実行できます。
 
 ---
 

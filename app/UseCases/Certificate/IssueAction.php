@@ -10,6 +10,7 @@ use App\Exceptions\Certification\EnrollmentNotPassedException;
 use App\Models\Certificate;
 use App\Models\Enrollment;
 use App\Services\CertificatePdfService;
+use DateTimeInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -32,13 +33,13 @@ final class IssueAction
      * @throws EnrollmentNotPassedException 受講登録が修了状態ではない
      * @throws CertificateAlreadyIssuedException 同一 Enrollment で修了証が既発行
      */
-    public function __invoke(Enrollment $enrollment): Certificate
+    public function __invoke(Enrollment $enrollment, ?DateTimeInterface $issuedAt = null): Certificate
     {
         if ($enrollment->status !== EnrollmentStatus::Passed || $enrollment->passed_at === null) {
             throw new EnrollmentNotPassedException;
         }
 
-        return DB::transaction(function () use ($enrollment) {
+        return DB::transaction(function () use ($enrollment, $issuedAt) {
             // 二重発行ガード: lockForUpdate で同時呼出を直列化し、enrollment_id UNIQUE 違反を例外メッセージ判別ではなく事前 SELECT で確定検出する
             $existing = Certificate::query()
                 ->where('enrollment_id', $enrollment->id)
@@ -54,7 +55,7 @@ final class IssueAction
                 'enrollment_id' => $enrollment->id,
                 'certification_id' => $enrollment->certification_id,
                 'pdf_path' => 'certificates/'.Str::ulid().'.pdf',
-                'issued_at' => now(),
+                'issued_at' => $issuedAt ?? now(),
             ]);
 
             $this->certificatePdf->store($certificate);

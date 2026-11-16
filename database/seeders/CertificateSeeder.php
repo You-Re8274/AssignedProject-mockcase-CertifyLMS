@@ -9,19 +9,18 @@ use App\Enums\EnrollmentStatus;
 use App\Enums\TermType;
 use App\Enums\UserRole;
 use App\Enums\UserStatus;
-use App\Models\Certificate;
 use App\Models\Certification;
 use App\Models\Enrollment;
 use App\Models\EnrollmentStatusLog;
 use App\Models\User;
+use App\UseCases\Certificate\IssueAction as IssueCertificateAction;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Str;
 
 /**
  * 卒業生向けの修了証 + 過去 Enrollment 補完シーダー。
  *
  * `EnrollmentSeeder::issueCertificate()` は in_progress 受講生の passed Enrollment に対し
- * 既に Certificate を発行している(動作確認用 demo)。本 Seeder はそれを残しつつ、
+ * 既に Certificate とPDFを発行している(動作確認用 demo)。本 Seeder はそれを残しつつ、
  * `UserSeeder` で生成される graduated 受講生 3 名に過去 Enrollment + Certificate を補完して
  * 「修了 → 卒業」フローの履歴を画面で見える状態にする。
  *
@@ -121,12 +120,6 @@ final class CertificateSeeder extends Seeder
     {
         $issuedAt = $enrollment->passed_at ?? now();
 
-        $certificate = Certificate::factory()
-            ->forEnrollment($enrollment)
-            ->state([
-                'pdf_path' => 'certificates/'.Str::ulid().'.pdf',
-                'issued_at' => $issuedAt,
-            ])
-            ->create();
+        app(IssueCertificateAction::class)($enrollment, $issuedAt);
     }
 }
