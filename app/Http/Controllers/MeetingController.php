@@ -36,7 +36,8 @@ class MeetingController extends Controller
      */
     public function index(IndexRequest $request, FetchStudentMeetingsAction $action): View
     {
-        $filter = $request->validated('filter') ?? 'upcoming';
+        $validated = $request->validated();
+        $filter = $validated['tab'] ?? $validated['filter'] ?? 'upcoming';
         $data = $action($request->user(), $filter);
 
         return view('meeting.index', [
@@ -52,10 +53,13 @@ class MeetingController extends Controller
     public function indexAsCoach(IndexAsCoachRequest $request, FetchCoachMeetingsAction $action): View
     {
         $filters = $request->validated();
-        $filter = $filters['filter'] ?? 'upcoming';
+        $filter = $filters['tab'] ?? $filters['filter'] ?? 'upcoming';
         $studentId = $filters['student'] ?? null;
         $enrollmentId = $filters['enrollment'] ?? null;
-        $meetings = $action($request->user(), $filters);
+        $meetings = $action($request->user(), [
+            ...$filters,
+            'filter' => $filter,
+        ]);
 
         return view('meeting.coach.index', [
             'meetings' => $meetings,

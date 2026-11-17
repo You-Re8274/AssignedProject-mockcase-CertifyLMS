@@ -27,6 +27,7 @@ class IndexRequest extends FormRequest
     {
         return [
             'filter' => ['nullable', 'in:upcoming,past,all'],
+            'tab' => ['nullable', 'in:upcoming,past,all'],
         ];
     }
 }

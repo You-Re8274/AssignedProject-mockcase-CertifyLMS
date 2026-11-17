@@ -27,6 +27,7 @@ class IndexAsCoachRequest extends FormRequest
     {
         return [
             'filter' => ['nullable', 'in:upcoming,past,all'],
+            'tab' => ['nullable', 'in:upcoming,past,all'],
             'student' => ['nullable', 'ulid', 'exists:users,id'],
             'enrollment' => ['nullable', 'ulid', 'exists:enrollments,id'],
         ];
