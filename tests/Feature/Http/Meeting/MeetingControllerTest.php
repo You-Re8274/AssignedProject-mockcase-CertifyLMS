@@ -59,6 +59,21 @@ class MeetingControllerTest extends TestCase
             && ! $meetings->contains('id', $other->id));
     }
 
+    public function test_student_index_tab_query_filters_past_meetings(): void
+    {
+        $student = User::factory()->student()->inProgress()->create();
+        $coach = User::factory()->coach()->create();
+        $past = Meeting::factory()->completed()->forCoach($coach)->forStudent($student)->create();
+        $upcoming = Meeting::factory()->reserved()->forCoach($coach)->forStudent($student)->inFuture()->create();
+
+        $response = $this->actingAs($student)->get(route('meetings.index', ['tab' => 'past']));
+
+        $response->assertOk()
+            ->assertViewHas('filter', 'past')
+            ->assertViewHas('meetings', fn ($meetings) => $meetings->contains('id', $past->id)
+                && ! $meetings->contains('id', $upcoming->id));
+    }
+
     public function test_show_blocks_third_party(): void
     {
         $student = User::factory()->student()->inProgress()->create();
@@ -243,6 +258,21 @@ class MeetingControllerTest extends TestCase
         $response->assertViewIs('meeting.coach.index');
         $response->assertViewHas('meetings', fn ($meetings) => $meetings->contains('id', $own->id)
             && ! $meetings->contains('id', $other->id));
+    }
+
+    public function test_coach_index_tab_query_filters_past_meetings(): void
+    {
+        $coach = User::factory()->coach()->create();
+        $student = User::factory()->student()->create();
+        $past = Meeting::factory()->completed()->forCoach($coach)->forStudent($student)->create();
+        $upcoming = Meeting::factory()->reserved()->forCoach($coach)->forStudent($student)->inFuture()->create();
+
+        $response = $this->actingAs($coach)->get(route('coach.meetings.index', ['tab' => 'past']));
+
+        $response->assertOk()
+            ->assertViewHas('filter', 'past')
+            ->assertViewHas('meetings', fn ($meetings) => $meetings->contains('id', $past->id)
+                && ! $meetings->contains('id', $upcoming->id));
     }
 
     public function test_upsert_memo_only_for_assigned_coach(): void
