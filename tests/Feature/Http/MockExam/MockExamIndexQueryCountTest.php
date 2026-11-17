@@ -6,6 +6,7 @@ namespace Tests\Feature\Http\MockExam;
 
 use App\Models\Certification;
 use App\Models\MockExam;
+use App\Models\MockExamQuestion;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -19,6 +20,50 @@ use Tests\TestCase;
 class MockExamIndexQueryCountTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_index_preserves_row_details_and_order_while_loading_relations(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $certification = Certification::factory()->published()->create([
+            'name' => '表示確認用資格',
+        ]);
+        $creator = User::factory()->admin()->create(['name' => '模試作成者']);
+        $updater = User::factory()->admin()->create(['name' => '模試更新者']);
+
+        $first = MockExam::factory()->forCertification($certification)->create([
+            'title' => '先に表示される模試',
+            'order' => 1,
+            'created_by_user_id' => $creator->id,
+            'updated_by_user_id' => $updater->id,
+        ]);
+        MockExamQuestion::factory()->count(2)->forMockExam($first)->create();
+
+        $second = MockExam::factory()->forCertification($certification)->create([
+            'title' => '後に表示される模試',
+            'order' => 2,
+            'created_by_user_id' => $creator->id,
+            'updated_by_user_id' => $updater->id,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.mock-exams.index'));
+
+        $response->assertOk()
+            ->assertSeeInOrder(['先に表示される模試', '後に表示される模試'])
+            ->assertSee('表示確認用資格')
+            ->assertSee('模試更新者');
+
+        $this->assertMatchesRegularExpression(
+            '/<td[^>]*text-right tabular-nums[^>]*>\s*2\s*<\/td>/s',
+            $response->getContent(),
+        );
+
+        $response->assertViewHas('mockExams', fn ($mockExams): bool => $mockExams->every(
+            fn (MockExam $mockExam, int $index): bool => $mockExam->relationLoaded('certification')
+                && $mockExam->relationLoaded('createdBy')
+                && $mockExam->relationLoaded('updatedBy')
+                && $mockExam->mock_exam_questions_count === ($index === 0 ? 2 : 0),
+        ));
+    }
 
     public function test_index_query_count_does_not_grow_with_mock_exam_count(): void
     {
