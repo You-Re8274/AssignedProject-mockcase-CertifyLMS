@@ -47,6 +47,8 @@ final class IndexAction
         }
 
         return $query
+            ->with(['certification', 'createdBy', 'updatedBy'])
+            ->withCount('mockExamQuestions')
             ->orderBy('certification_id')
             ->orderBy('order')
             ->orderByDesc('updated_at')
