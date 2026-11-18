@@ -10,6 +10,8 @@ use App\Models\Enrollment;
 use App\Models\User;
 use App\Services\EnrollmentStatusChangeService;
 use App\UseCases\Dashboard\FetchAdminDashboardAction;
+use App\UseCases\Enrollment\DestroyAction;
+use App\UseCases\Enrollment\StoreAction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -100,6 +102,24 @@ class AdminDashboardCacheTest extends TestCase
         );
     }
 
+    public function test_dashboard_aggregates_are_refreshed_after_cache_ttl_expires(): void
+    {
+        $admin = User::factory()->admin()->inProgress()->create();
+        $cert = Certification::factory()->published()->create();
+        Enrollment::factory()->for($cert)->learning()->count(2)->create();
+        Cache::flush();
+
+        $first = app(FetchAdminDashboardAction::class)($admin);
+        Enrollment::factory()->for($cert)->passed()->create();
+        $this->travel((int) config('dashboard.admin_cache_ttl') + 1)->seconds();
+
+        $afterExpiry = app(FetchAdminDashboardAction::class)($admin);
+
+        $this->assertSame(0, $first->kpi['passed_count']);
+        $this->assertSame(1, $afterExpiry->kpi['passed_count']);
+        $this->assertSame(0.3333, $afterExpiry->completionRateByCertification->first()['completion_rate']);
+    }
+
     public function test_admin_kpi_cache_is_invalidated_on_enrollment_status_change(): void
     {
         // Arrange: admin + 受講中 2 件を 1 度集計してキャッシュさせる
@@ -129,6 +149,20 @@ class AdminDashboardCacheTest extends TestCase
         $this->assertSame(1, $after->kpi['passed_count']);
     }
 
+    public function test_admin_dashboard_cache_is_invalidated_when_first_enrollment_is_recorded(): void
+    {
+        $admin = User::factory()->admin()->inProgress()->create();
+        $student = User::factory()->student()->inProgress()->create();
+        $cert = Certification::factory()->published()->create();
+        Cache::flush();
+        app(FetchAdminDashboardAction::class)($admin);
+
+        app(StoreAction::class)($student, ['certification_id' => $cert->id]);
+        $after = app(FetchAdminDashboardAction::class)($admin);
+
+        $this->assertSame(1, $after->kpi['learning_count']);
+    }
+
     public function test_completion_rate_cache_is_invalidated_on_enrollment_status_change(): void
     {
         // Arrange: admin + 受講中 2 件(修了率 0 %)を 1 度集計してキャッシュさせる
@@ -156,5 +190,21 @@ class AdminDashboardCacheTest extends TestCase
             $afterRate,
             '状態遷移後は修了率キャッシュも無効化され、最新の修了率(1/2)が返るはず',
         );
+    }
+
+    public function test_admin_dashboard_cache_is_invalidated_when_enrollment_is_withdrawn(): void
+    {
+        $admin = User::factory()->admin()->inProgress()->create();
+        $student = User::factory()->student()->inProgress()->create();
+        $cert = Certification::factory()->published()->create();
+        $enrollment = Enrollment::factory()->for($student)->for($cert)->learning()->create();
+        Cache::flush();
+        app(FetchAdminDashboardAction::class)($admin);
+
+        app(DestroyAction::class)($enrollment);
+        $after = app(FetchAdminDashboardAction::class)($admin);
+
+        $this->assertSame(0, $after->kpi['learning_count']);
+        $this->assertCount(0, $after->completionRateByCertification);
     }
 }
