@@ -10,10 +10,12 @@ use App\Models\Payment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Mockery;
+use PHPUnit\Framework\Attributes\Group;
 use Stripe\ApiRequestor;
 use Stripe\HttpClient\ClientInterface;
 use Tests\TestCase;
 
+#[Group('external-api')]
 class MeetingQuotaCheckoutControllerTest extends TestCase
 {
     use RefreshDatabase;

@@ -8,8 +8,10 @@ use App\Models\User;
 use App\Services\GoogleCalendarOAuthService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Mockery;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 
+#[Group('external-api')]
 class GoogleCalendarControllerTest extends TestCase
 {
     use RefreshDatabase;

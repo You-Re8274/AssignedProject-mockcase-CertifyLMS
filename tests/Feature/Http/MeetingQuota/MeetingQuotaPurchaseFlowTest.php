@@ -13,13 +13,17 @@ use App\Services\MeetingQuotaService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
 use Mockery;
+use PHPUnit\Framework\Attributes\Group;
 use Stripe\ApiRequestor;
 use Stripe\HttpClient\ClientInterface;
+use Tests\Support\SignsStripeWebhookPayload;
 use Tests\TestCase;
 
+#[Group('external-api')]
 class MeetingQuotaPurchaseFlowTest extends TestCase
 {
     use RefreshDatabase;
+    use SignsStripeWebhookPayload;
 
     private const WEBHOOK_SECRET = 'whsec_purchase_flow_test_secret';
 
@@ -117,7 +121,7 @@ class MeetingQuotaPurchaseFlowTest extends TestCase
         $this->sendCompletedEvent($session, 'evt_test_purchase_flow')
             ->assertOk()
             ->assertExactJson(['received' => true]);
-        $this->sendCompletedEvent($session, 'evt_test_purchase_flow')
+        $this->sendCompletedEvent($session, 'evt_test_purchase_flow_redelivery')
             ->assertOk();
 
         $this->assertSame(PaymentStatus::Paid, $payment->fresh()->status);
@@ -146,8 +150,6 @@ class MeetingQuotaPurchaseFlowTest extends TestCase
             'pending_webhooks' => 1,
             'type' => 'checkout.session.completed',
         ], JSON_THROW_ON_ERROR);
-        $timestamp = time();
-        $signature = hash_hmac('sha256', $timestamp.'.'.$payload, self::WEBHOOK_SECRET);
 
         return $this->call(
             'POST',
@@ -157,7 +159,7 @@ class MeetingQuotaPurchaseFlowTest extends TestCase
             [],
             [
                 'CONTENT_TYPE' => 'application/json',
-                'HTTP_STRIPE_SIGNATURE' => "t={$timestamp},v1={$signature}",
+                'HTTP_STRIPE_SIGNATURE' => $this->stripeSignatureHeader($payload, self::WEBHOOK_SECRET),
             ],
             $payload,
         );

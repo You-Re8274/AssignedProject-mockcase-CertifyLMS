@@ -9,12 +9,18 @@ use App\Models\Certification;
 use App\Models\CoachAvailability;
 use App\Models\Meeting;
 use App\Models\User;
+use App\Services\GoogleCalendarService;
 use App\Services\MeetingAvailabilityService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Mockery;
+use PHPUnit\Framework\Attributes\Group;
+use RuntimeException;
 use Tests\TestCase;
 
+#[Group('external-api')]
 class MeetingAvailabilityServiceTest extends TestCase
 {
     use RefreshDatabase;
@@ -96,6 +102,34 @@ class MeetingAvailabilityServiceTest extends TestCase
 
         $this->assertCount(1, $slots);
         $this->assertSame(2, $slots->first()['available_coach_count']);
+    }
+
+    public function test_calendar_failure_falls_back_to_lms_availability(): void
+    {
+        $certification = Certification::factory()->published()->create();
+        $coach = User::factory()->coach()->create([
+            'google_access_token' => 'expired-access-token',
+            'google_token_expires_at' => now()->addHour(),
+        ]);
+        $this->attachCoach($certification, $coach);
+        CoachAvailability::factory()->forCoach($coach)->onDay(1)->timeRange('09:00:00', '10:00:00')->create();
+
+        $calendar = Mockery::mock(GoogleCalendarService::class);
+        $calendar->shouldReceive('busyIntervals')
+            ->once()
+            ->andThrow(new RuntimeException('Calendar unavailable'));
+        $this->app->instance(GoogleCalendarService::class, $calendar);
+        Log::shouldReceive('warning')
+            ->once()
+            ->with('Google Calendar availability lookup failed; using LMS availability only.', Mockery::type('array'));
+
+        $slots = app(MeetingAvailabilityService::class)->slotsForCertification(
+            $certification,
+            Carbon::parse('2026-06-01'),
+        );
+
+        $this->assertCount(1, $slots);
+        $this->assertSame(1, $slots->first()['available_coach_count']);
     }
 
     public function test_validate_slot_throws_when_outside_availability(): void

@@ -16,8 +16,10 @@ use App\Services\AiChat\AiChatService;
 use App\Services\AiChat\GeminiService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 
+#[Group('external-api')]
 class AiChatServiceTest extends TestCase
 {
     use RefreshDatabase;

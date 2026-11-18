@@ -10,11 +10,15 @@ use App\Models\Payment;
 use App\Services\MeetingQuotaService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
+use PHPUnit\Framework\Attributes\Group;
+use Tests\Support\SignsStripeWebhookPayload;
 use Tests\TestCase;
 
+#[Group('external-api')]
 class StripeWebhookControllerTest extends TestCase
 {
     use RefreshDatabase;
+    use SignsStripeWebhookPayload;
 
     private const WEBHOOK_SECRET = 'whsec_test_signature_secret';
 
@@ -36,7 +40,7 @@ class StripeWebhookControllerTest extends TestCase
         $this->sendEvent('checkout.session.completed', $session, 'evt_test_paid')
             ->assertOk()
             ->assertExactJson(['received' => true]);
-        $this->sendEvent('checkout.session.completed', $session, 'evt_test_paid')
+        $this->sendEvent('checkout.session.completed', $session, 'evt_test_paid_redelivery')
             ->assertOk();
 
         $payment->refresh();
@@ -135,10 +139,8 @@ class StripeWebhookControllerTest extends TestCase
     public function test_malformed_signed_payload_is_rejected(): void
     {
         $payload = '{invalid';
-        $timestamp = time();
-        $signature = hash_hmac('sha256', $timestamp.'.'.$payload, self::WEBHOOK_SECRET);
 
-        $this->postRawWebhook($payload, "t={$timestamp},v1={$signature}")
+        $this->postRawWebhook($payload, $this->stripeSignatureHeader($payload, self::WEBHOOK_SECRET))
             ->assertBadRequest();
     }
 
@@ -252,10 +254,8 @@ class StripeWebhookControllerTest extends TestCase
     private function sendEvent(string $type, array $session, string $eventId): TestResponse
     {
         $payload = $this->eventPayload($type, $session, $eventId);
-        $timestamp = time();
-        $signature = hash_hmac('sha256', $timestamp.'.'.$payload, self::WEBHOOK_SECRET);
 
-        return $this->postRawWebhook($payload, "t={$timestamp},v1={$signature}");
+        return $this->postRawWebhook($payload, $this->stripeSignatureHeader($payload, self::WEBHOOK_SECRET));
     }
 
     /**
