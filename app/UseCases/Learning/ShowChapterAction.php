@@ -7,8 +7,8 @@ namespace App\UseCases\Learning;
 use App\Enums\CertificationStatus;
 use App\Enums\ContentStatus;
 use App\Models\Chapter;
-use App\Models\SectionProgress;
 use App\Models\User;
+use App\Services\Learning\LearningProgressService;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
@@ -19,6 +19,10 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
  */
 final class ShowChapterAction
 {
+    public function __construct(
+        private readonly LearningProgressService $progressService,
+    ) {}
+
     /**
      * @return array<string, mixed>
      */
@@ -42,14 +46,9 @@ final class ShowChapterAction
             ->where('certification_id', $chapter->part->certification_id)
             ->first();
 
-        $completedSectionIds = [];
-        if ($enrollment !== null && $sections->isNotEmpty()) {
-            $completedSectionIds = SectionProgress::query()
-                ->where('enrollment_id', $enrollment->id)
-                ->whereIn('section_id', $sections->pluck('id'))
-                ->pluck('section_id')
-                ->all();
-        }
+        $completedSectionIds = $enrollment !== null
+            ? $this->progressService->completedSectionIds($enrollment, $sections->pluck('id'))
+            : [];
 
         return [
             'chapter' => $chapter,
