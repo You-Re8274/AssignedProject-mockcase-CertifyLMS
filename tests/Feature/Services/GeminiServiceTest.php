@@ -16,10 +16,13 @@ use App\Models\Section;
 use App\Models\User;
 use App\Services\AiChat\GeminiService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 
+#[Group('external-api')]
 class GeminiServiceTest extends TestCase
 {
     use RefreshDatabase;
@@ -129,5 +132,67 @@ class GeminiServiceTest extends TestCase
             $this->assertSame(503, $exception->upstreamStatus);
             $this->assertStringNotContainsString('private upstream detail', $exception->getMessage());
         }
+    }
+
+    public function test_it_rejects_an_empty_generation_response(): void
+    {
+        config(['services.gemini.api_key' => 'test-api-key']);
+        Http::fake([
+            'generativelanguage.googleapis.com/*' => Http::response([
+                'candidates' => [['content' => ['parts' => [['text' => '  ']]]]],
+            ]),
+        ]);
+        $conversation = AiChatConversation::factory()->create();
+        $message = AiChatMessage::factory()->for($conversation, 'conversation')->create();
+
+        try {
+            app(GeminiService::class)->generate($conversation, $message);
+            $this->fail('An empty generation response should be rejected.');
+        } catch (GeminiApiException $exception) {
+            $this->assertSame('invalid_response', $exception->reason);
+        }
+    }
+
+    public function test_it_maps_connection_failures_to_a_safe_api_exception(): void
+    {
+        config(['services.gemini.api_key' => 'test-api-key']);
+        Http::fake(fn () => throw new ConnectionException('Connection refused'));
+        $conversation = AiChatConversation::factory()->create();
+        $message = AiChatMessage::factory()->for($conversation, 'conversation')->create();
+
+        try {
+            app(GeminiService::class)->generate($conversation, $message);
+            $this->fail('A connection failure should be surfaced as a Gemini API exception.');
+        } catch (GeminiApiException $exception) {
+            $this->assertSame('connection_error', $exception->reason);
+            $this->assertNull($exception->upstreamStatus);
+        }
+    }
+
+    public function test_a_transient_upstream_error_can_be_retried_successfully_without_network_access(): void
+    {
+        config(['services.gemini.api_key' => 'test-api-key']);
+        Http::fakeSequence()
+            ->push(['error' => 'temporarily unavailable'], 503)
+            ->push([
+                'candidates' => [['content' => ['parts' => [['text' => '再試行後の回答']]]]],
+            ]);
+        $conversation = AiChatConversation::factory()->create();
+        $message = AiChatMessage::factory()->for($conversation, 'conversation')->create([
+            'content' => '再試行してください。',
+        ]);
+        $service = app(GeminiService::class);
+
+        try {
+            $service->generate($conversation, $message);
+            $this->fail('The first transient upstream error should be surfaced.');
+        } catch (GeminiApiException $exception) {
+            $this->assertSame(503, $exception->upstreamStatus);
+        }
+
+        $result = $service->generate($conversation, $message);
+
+        $this->assertSame('再試行後の回答', $result->content);
+        Http::assertSentCount(2);
     }
 }
