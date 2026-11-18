@@ -5,19 +5,31 @@ declare(strict_types=1);
 namespace App\Notifications;
 
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-final class ActivityNotification extends Notification
+final class ActivityNotification extends Notification implements ShouldQueue
 {
     use Queueable;
+
+    public int $tries = 5;
+
+    /**
+     * @var array<int, int>
+     */
+    public array $backoff = [10, 30, 60, 120];
+
+    public int $timeout = 120;
 
     /**
      * @param array<string, string> $data
      */
     public function __construct(
         private readonly array $data,
-    ) {}
+    ) {
+        $this->afterCommit();
+    }
 
     /**
      * @return array<int, string>

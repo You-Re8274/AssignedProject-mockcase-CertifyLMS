@@ -35,7 +35,13 @@ class PasswordResetTest extends TestCase
         $r2->assertSessionHas('status');
         $this->assertSame($r1->getSession()->get('status'), $r2->getSession()->get('status'));
 
-        Notification::assertSentTo($existing, ResetPasswordNotification::class);
+        Notification::assertSentTo(
+            $existing,
+            ResetPasswordNotification::class,
+            fn (ResetPasswordNotification $notification): bool => $notification->afterCommit
+                && $notification->tries === 5
+                && $notification->backoff === [10, 30, 60, 120],
+        );
     }
 
     public function test_reset_password_updates_hash_and_redirects(): void

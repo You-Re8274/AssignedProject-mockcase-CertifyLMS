@@ -12,8 +12,10 @@ use App\Models\User;
 use App\Notifications\ActivityNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Notifications\DatabaseNotification;
+use Illuminate\Notifications\SendQueuedNotifications;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -21,6 +23,25 @@ use Tests\TestCase;
 class AnnouncementControllerTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_large_audience_is_queued_per_recipient_and_channel(): void
+    {
+        Queue::fake();
+        $admin = User::factory()->admin()->create();
+        collect(range(1, 25))->each(fn (): User => $this->activeStudent());
+
+        $response = $this->actingAs($admin)->post(route('admin.announcements.store'), [
+            'title' => '全受講生への非同期配信',
+            'body' => '配信対象の全員に同じお知らせを届けます。',
+            'target_type' => AnnouncementTargetType::AllStudents->value,
+        ]);
+
+        $announcement = Announcement::query()->where('title', '全受講生への非同期配信')->firstOrFail();
+        $response->assertRedirect(route('admin.announcements.show', $announcement));
+        $this->assertSame(25, $announcement->dispatched_count);
+        $this->assertNotNull($announcement->dispatched_at);
+        Queue::assertPushed(SendQueuedNotifications::class, 50);
+    }
 
     public function test_admin_can_view_announcement_index_create_form_and_detail(): void
     {
