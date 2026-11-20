@@ -71,6 +71,12 @@ sail artisan migrate:fresh --seed
 
 `storage:link` は教材画像・プロフィール画像の配信に必要です。`migrate:fresh --seed` でテーブル作成とデモデータ投入が行われます（いつでも再実行してデータを初期状態に戻せます）。
 
+メールや通知のキュー処理には、別ターミナルでワーカーを起動してください。
+
+```bash
+sail artisan queue:work database --queue=default --sleep=3 --tries=5 --backoff=10 --timeout=120
+```
+
 ### 7. フロントエンドのビルド
 
 ```bash
@@ -106,7 +112,7 @@ Laravel Sail環境下で、キャッシュやPDF生成（mPDF）の出力先デ�
 | phpMyAdmin（DB 確認） | http://localhost:8080 |
 | Mailpit（メール確認） | http://localhost:8025 |
 
-アプリケーションが送信するメール（招待メールなど）はすべて Mailpit に届きます。実際のメールは送信されません。
+キューワーカーを起動すると、アプリケーションが送信するメール（招待メールなど）は Mailpit に届きます。実際のメールは送信されません。
 
 ## ログインアカウント
 
@@ -152,7 +158,7 @@ sail bin pint --test     # 整形漏れの確認（CI 相当のチェック）
 
 ## 環境変数
 
-`.env.example` をコピーするだけで、すべての機能がローカルで動作します（メールは Mailpit に配信されます）。
+`.env.example` をコピーすれば、外部サービス連携を除く基本機能をローカルで動作確認できます。Google Calendar・Gemini・Stripe などの連携には、それぞれの認証情報を `.env` に設定してください。メールはキューワーカー起動後に Mailpit で確認できます。
 
 - `PUSHER_*` — チャットのリアルタイム配信に使用します。有効にする場合は Pusher のキーを取得して設定し、`BROADCAST_DRIVER=pusher` に変更してください。未設定（既定の `BROADCAST_DRIVER=log`）でもメッセージの送受信自体は動作し、相手画面へのリアルタイム反映のみ行われません
 

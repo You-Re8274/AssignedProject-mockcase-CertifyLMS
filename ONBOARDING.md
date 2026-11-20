@@ -66,8 +66,8 @@ routes/web.php            … 入口。URL・ミドルウェア・Controller の
 | `Http/Requests/{Entity}/` | FormRequest。`rules()` のバリデーションと `authorize()` の認可 |
 | `UseCases/{Entity}/` | **1 業務操作 = 1 Action クラス**（例: `StoreAction` / `UpdateAction` / `ReceiveCertificateAction`） |
 | `Services/` | 複数 Entity にまたがる集計・判定ロジック（例: ストリーク計算、面談の空き枠計算） |
-| `Models/` | Eloquent モデル（36 個）。リレーション・スコープ・キャストを集約 |
-| `Policies/` | 認可ポリシー（28 個）。「誰がこのリソースに何をできるか」 |
+| `Models/` | Eloquent モデル。リレーション・スコープ・キャストを集約 |
+| `Policies/` | 認可ポリシー。「誰がこのリソースに何をできるか」 |
 | `Enums/` | 状態・種別の PHP Enum（例: `EnrollmentStatus` / `MeetingStatus` / `UserRole`） |
 | `Notifications/` / `Mail/` | 通知・メール |
 | `Console/Commands/` | 日次バッチ（招待の期限切れ・面談の自動完了など。`app/Console/Kernel.php` でスケジュール登録） |
@@ -135,7 +135,7 @@ routes/web.php            … 入口。URL・ミドルウェア・Controller の
 - `role:admin,coach` のような複数ロール指定もある（教材管理など）
 - `Route::middleware(['auth', 'role:student,coach', 'active-learning'])` — 受講中の受講生・コーチ共通の質問掲示板と chat。掲示板の資格公開状態・コーチ担当範囲は `QaThreadPolicy` と `QaThread::scopeVisibleTo()` で絞り込む
 
-`routes/api.php` は Sanctum 認証の最小構成のみです。
+`routes/api.php` では Sanctum 認証付きの `/api/user` と、通知用の `/api/v1/notifications` API（一覧・単一既読・全件既読）を定義しています。
 
 ---
 
@@ -169,7 +169,7 @@ erDiagram
 | 面談 | meetings, meeting_memos, coach_availabilities | 面談予約・面談メモ・コーチの対応可能時間帯 |
 | チャット | chat_rooms, chat_members, chat_messages | 資格単位のグループチャット（受講生 + 担当コーチ） |
 
-各テーブルには `app/Models/` に対応する Model が 1:1 で存在します。**テーブルの意味やつながりに迷ったら、まず Model ファイルのリレーション定義（belongsTo / hasMany）と PHPDoc を読む**のが近道です。
+テーブルによっては中間テーブルなど Model を持たないものもあります。**テーブルの意味やつながりに迷ったら、対応する Model のリレーション定義（belongsTo / hasMany）と PHPDoc を読む**のが近道です。
 
 ---
 
@@ -191,10 +191,10 @@ erDiagram
 | ロールによるアクセス制御 | `app/Http/Middleware/EnsureUserRole.php`（`role:` エイリアスの実体） |
 | メール通知 | `app/Notifications/Auth/ResetPasswordNotification.php`（Notification クラスの実例） |
 | 日次バッチ | `app/Console/Commands/`（招待の期限切れ・面談の自動完了など） |
-
-処理中に対象条件の状態を更新する定期処理を一定件数ずつ処理する場合は、オフセットがずれる `chunk()` ではなく主キーで位置を進める `chunkById()` を使う。該当例: `GraduateExpiredUsersCommand` / `FailExpiredEnrollmentsCommand` / `AutoCompleteMeetingsCommand`。
 | Feature テスト（HTTP 経由） | `tests/Feature/Http/{Entity}/` 配下（`actingAs()` でロール別に検証する形） |
 | Unit テスト（Model / Service） | `tests/Unit/Models/SectionTest.php` / `tests/Unit/Services/MeetingAvailabilityServiceTest.php` |
+
+処理中に対象条件の状態を更新する定期処理を一定件数ずつ処理する場合は、オフセットがずれる `chunk()` ではなく主キーで位置を進める `chunkById()` を使います。該当例: `GraduateExpiredUsersCommand` / `FailExpiredEnrollmentsCommand` / `AutoCompleteMeetingsCommand`。
 
 ---
 
